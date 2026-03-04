@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 CLIPPER TOOL - Web Version
-Flask backend for Railway deployment
+Flask backend - OpenCV face tracking + faster-whisper + subtitle burn-in
 """
 
 import os, sys, json, time, re, math, subprocess, shutil, threading, uuid
@@ -30,15 +30,58 @@ def job_progress(jid, pct, stage=""):
         jobs[jid]["progress"] = pct
         jobs[jid]["stage"] = stage
 
+# ── auto-install ──────────────────────────────────────────────────────────────
 def _pip(pkg):
-    subprocess.run([sys.executable,"-m","pip","install",pkg,
-                    "--break-system-packages","-q"], check=True)
+    subprocess.run([sys.executable, "-m", "pip", "install", pkg,
+                    "--break-system-packages", "-q"], check=True)
 
-for _d in ["yt_dlp"]:
-    try: __import__(_d)
-    except ImportError: _pip(_d.replace("_","-"))
+for _pkg, _imp in [
+    ("yt-dlp",                  "yt_dlp"),
+    ("faster-whisper",          "faster_whisper"),
+    ("opencv-python-headless",  "cv2"),
+    ("numpy",                   "numpy"),
+]:
+    try:
+        __import__(_imp)
+    except ImportError:
+        print(f"Installing {_pkg}...")
+        _pip(_pkg)
 
-# ── Metadata ──────────────────────────────────────────────────────────────────
+# ── optional imports ──────────────────────────────────────────────────────────
+WHISPER_OK = False
+CV2_OK     = False
+
+try:
+    from faster_whisper import WhisperModel
+    WHISPER_OK = True
+except ImportError:
+    pass
+
+try:
+    import cv2
+    import numpy as np
+    CV2_OK = True
+except ImportError:
+    pass
+
+WHISPER_MODEL = None
+WHISPER_LOCK  = threading.Lock()
+
+def get_whisper():
+    global WHISPER_MODEL
+    with WHISPER_LOCK:
+        if WHISPER_MODEL is None and WHISPER_OK:
+            try:
+                size = os.environ.get("WHISPER_MODEL", "base")
+                WHISPER_MODEL = WhisperModel(size, device="cpu", compute_type="int8")
+                print(f"Whisper '{size}' loaded OK")
+            except Exception as e:
+                print(f"Whisper load failed: {e}")
+    return WHISPER_MODEL
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# METADATA
+# ═══════════════════════════════════════════════════════════════════════════════
 def fetch_info(url):
     r = subprocess.run(
         ["yt-dlp","--dump-json","--no-playlist","--no-warnings",
@@ -51,7 +94,9 @@ def fetch_info(url):
         if line.startswith("{"): return json.loads(line)
     raise RuntimeError("No JSON metadata found")
 
-# ── FYP Score ─────────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+# FYP SCORE
+# ═══════════════════════════════════════════════════════════════════════════════
 _MW = {"engagement":0.32,"view_ratio":0.25,"duration":0.18,"watch_time":0.15,"trending":0.10}
 
 def meta_score(m):
@@ -62,7 +107,8 @@ def meta_score(m):
     sub = int(m.get("channel_follower_count") or 1)
     ts  = float(m.get("timestamp") or 0)
     tags= m.get("tags") or []
-    txt = ((m.get("title") or "")+" "+(m.get("description") or "")[:400]+" "+" ".join(tags)).lower()
+    txt = ((m.get("title") or "")+" "+(m.get("description") or "")[:400]
+           +" "+" ".join(tags)).lower()
 
     eng = (lk+cm*2)/max(vw,1)*100
     es  = 100 if eng>=10 else 85 if eng>=5 else 65 if eng>=2 else 45 if eng>=0.5 else 20
@@ -74,9 +120,11 @@ def meta_score(m):
     trs = (100 if (time.time()-ts)/86400<=1 else 85 if (time.time()-ts)/86400<=7 else
            65 if (time.time()-ts)/86400<=30 else 40 if (time.time()-ts)/86400<=90 else 20) if ts else 50
 
-    bd    = {"engagement":round(es),"view_ratio":round(rs),"duration":round(ds),"watch_time":round(ws),"trending":round(trs)}
+    bd    = {"engagement":round(es),"view_ratio":round(rs),"duration":round(ds),
+             "watch_time":round(ws),"trending":round(trs)}
     total = sum(bd[k]*_MW[k] for k in _MW)
-    hooks = ["viral","fyp","foryou","omg","epic","shocking","must watch","pov","storytime","exposed","reaction","trending","crazy"]
+    hooks = ["viral","fyp","foryou","omg","epic","shocking","must watch","pov",
+             "storytime","exposed","reaction","trending","crazy"]
     bonus = min(10, sum(2 for k in hooks if k in txt))
     total = min(100, total+bonus)
 
@@ -89,19 +137,88 @@ def meta_score(m):
     return {"total":round(total,1),"breakdown":bd,"label":lb,"color":lc,"bonus":bonus,
             "raw":{"duration":dur,"views":vw,"likes":lk,"comments":cm,"subs":sub}}
 
-# ── Transcript ────────────────────────────────────────────────────────────────
-_HOOK = ["tapi tunggu","wait","hold on","but first","sebelum itu","ternyata","yang bikin",
-         "kamu harus","jangan lewatkan","rahasia","bocoran","faktanya","rupanya","siapa sangka",
-         "gak nyangka","gak percaya","gila","gokil","parah","kocak","wow","amazing","incredible",
-         "insane","unbelievable","omg","tiba-tiba","seketika","akhirnya","suddenly","finally",
-         "turns out","revealed","shocking","exposed","reaction","cobain","harus coba","wajib",
-         "terbaik","nomor satu","pov","storytime","wait for it","plot twist","nah fr"]
+# ═══════════════════════════════════════════════════════════════════════════════
+# WHISPER TRANSKRIPSI
+# ═══════════════════════════════════════════════════════════════════════════════
+_HOOK = [
+    "tapi tunggu","wait","hold on","but first","sebelum itu","ternyata","yang bikin",
+    "kamu harus","jangan lewatkan","rahasia","bocoran","faktanya","rupanya","siapa sangka",
+    "gak nyangka","gak percaya","gila","gokil","parah","kocak","wow","amazing","incredible",
+    "insane","unbelievable","omg","tiba-tiba","seketika","akhirnya","suddenly","finally",
+    "turns out","revealed","shocking","exposed","reaction","cobain","harus coba","wajib",
+    "terbaik","nomor satu","pov","storytime","wait for it","plot twist","nah fr",
+]
 
+def extract_audio_chunk(stream_url, start, duration, out_path):
+    cmd = [
+        "ffmpeg","-y",
+        "-ss", str(start),
+        "-i", stream_url,
+        "-t", str(duration),
+        "-vn","-ar","16000","-ac","1",
+        "-f","wav", str(out_path)
+    ]
+    r = subprocess.run(cmd, capture_output=True, timeout=90)
+    return r.returncode == 0 and out_path.exists()
+
+def transcribe_audio(audio_path, jid=""):
+    model = get_whisper()
+    if not model: return []
+    try:
+        segments, _ = model.transcribe(
+            str(audio_path),
+            language=None,
+            beam_size=3,
+            vad_filter=True,
+            vad_parameters={"min_silence_duration_ms": 400},
+        )
+        result = [{"start":s.start,"end":s.end,"text":s.text.strip()} for s in segments]
+        return result
+    except Exception as e:
+        if jid: job_log(jid, f"Whisper error: {e}", "warn")
+        return []
+
+def whisper_probe_candidates(direct_url, duration, clip_dur, n_probes=6, tmp_dir=None, jid=""):
+    if not WHISPER_OK or not direct_url: return []
+    step      = max(clip_dur, int((duration - clip_dur) / max(n_probes-1, 1)))
+    positions = list(range(0, int(duration - clip_dur)+1, step))[:n_probes]
+    results   = []
+
+    for i, pos in enumerate(positions):
+        if jid: job_log(jid, f"Whisper probe [{i+1}/{len(positions)}] @ {str(timedelta(seconds=pos))}")
+        if jid: job_progress(jid, 18 + int(i/len(positions)*35), "whisper_probe")
+
+        chunk = tmp_dir / f"chunk_{pos}.wav"
+        ok    = extract_audio_chunk(direct_url, pos, min(clip_dur, 60), chunk)
+        if not ok: continue
+
+        segs = transcribe_audio(chunk, jid)
+        chunk.unlink(missing_ok=True)
+        if not segs: continue
+
+        full_text = " ".join(s["text"] for s in segs).lower()
+        matched   = [w for w in _HOOK if w in full_text]
+        wc        = max(1, len(full_text.split()))
+        density   = len(matched) / math.sqrt(wc) * 100
+        pos_b     = max(0, 15*(1 - pos/max(duration,1)))
+        score     = min(100, round(density + pos_b + len(matched)*5, 1))
+
+        results.append({
+            "start":pos,"end":pos+clip_dur,"score":score,
+            "matched":matched[:5],"preview":full_text[:80],
+            "method":"whisper","subs":segs,
+        })
+
+    results.sort(key=lambda x: -x["score"])
+    return results
+
+# ── YouTube subtitle fallback ─────────────────────────────────────────────────
 def fetch_transcript(url, tmp_dir):
     out_tmpl = str(tmp_dir / "sub.%(ext)s")
-    subprocess.run(["yt-dlp","--write-auto-subs","--write-subs","--sub-format","json3/vtt/best",
-                    "--skip-download","--no-playlist","--no-warnings","-o",out_tmpl,url],
-                   capture_output=True, timeout=60)
+    subprocess.run(
+        ["yt-dlp","--write-auto-subs","--write-subs","--sub-format","json3/vtt/best",
+         "--skip-download","--no-playlist","--no-warnings","-o",out_tmpl,url],
+        capture_output=True, timeout=60)
     for f in tmp_dir.glob("sub*.json3"):
         try: return _parse_json3(f)
         except: pass
@@ -125,7 +242,7 @@ def _parse_vtt(f):
         line = line.strip()
         if "-->" in line:
             if buf: segs.append({"start":s,"end":e,"text":" ".join(buf)})
-            p = line.split("-->"); s,e = _ts_parse(p[0]),_ts_parse(p[1].split()[0]); buf = []
+            p = line.split("-->"); s,e = _ts_parse(p[0]),_ts_parse(p[1].split()[0]); buf=[]
         elif line and not line.startswith("WEBVTT") and not line.isdigit():
             c = re.sub(r"<[^>]+>","",line)
             if c: buf.append(c)
@@ -138,7 +255,8 @@ def _parse_json3(f):
     for ev in data.get("events",[]):
         sms = ev.get("tStartMs",0); dms = ev.get("dDurationMs",0)
         txt = "".join(sg.get("utf8","") for sg in ev.get("segs",[])).strip()
-        if txt and txt!="\n": segs.append({"start":sms/1000,"end":(sms+dms)/1000,"text":txt})
+        if txt and txt!="\n":
+            segs.append({"start":sms/1000,"end":(sms+dms)/1000,"text":txt})
     return segs
 
 def score_transcript(segs, duration, clip_dur):
@@ -147,24 +265,27 @@ def score_transcript(segs, duration, clip_dur):
     for sg in segs: buckets[int(sg["start"])].append(sg["text"].lower())
     step = max(1, clip_dur // 4)
     results = []
-    for s in range(0, max(0, int(duration - clip_dur)) + 1, step):
+    for s in range(0, max(0, int(duration-clip_dur))+1, step):
         e   = s + clip_dur
-        txt = " ".join(" ".join(buckets[t]) for t in range(s, min(e, int(duration))) if t in buckets)
+        txt = " ".join(" ".join(buckets[t]) for t in range(s,min(e,int(duration))) if t in buckets)
         if not txt: continue
         matched = [w for w in _HOOK if w in txt]
         wc      = max(1, len(txt.split()))
         density = len(matched) / math.sqrt(wc) * 100
-        pos_b   = max(0, 15*(1 - s/max(duration,1)))
-        score   = min(100, round(density + pos_b, 1))
+        pos_b   = max(0, 15*(1-s/max(duration,1)))
+        score   = min(100, round(density+pos_b, 1))
         if matched or density > 0:
             results.append({"start":s,"end":e,"score":score,"matched":matched[:5],
                              "preview":txt[:80].replace("\n"," "),"method":"transcript"})
     results.sort(key=lambda x: -x["score"])
     return results
 
-# ── Audio Probe ───────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+# AUDIO PROBE
+# ═══════════════════════════════════════════════════════════════════════════════
 def probe_segment_loudness(url, start, probe_dur=8):
-    cmd = ["ffmpeg","-y","-ss",str(start),"-i",url,"-t",str(probe_dur),"-vn","-af","volumedetect","-f","null","-"]
+    cmd = ["ffmpeg","-y","-ss",str(start),"-i",url,"-t",str(probe_dur),
+           "-vn","-af","volumedetect","-f","null","-"]
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
     m = re.search(r"mean_volume:\s*([-\d.]+)\s*dB", r.stderr)
     if m:
@@ -173,74 +294,161 @@ def probe_segment_loudness(url, start, probe_dur=8):
     return 0.0
 
 def get_direct_url(url):
-    r = subprocess.run(["yt-dlp","-g","--no-playlist","--no-warnings","-f","bestaudio[ext=m4a]/bestaudio/best",url],
-                       capture_output=True, text=True, timeout=30)
+    r = subprocess.run(
+        ["yt-dlp","-g","--no-playlist","--no-warnings",
+         "-f","bestaudio[ext=m4a]/bestaudio/best", url],
+        capture_output=True, text=True, timeout=30)
     lines = [l.strip() for l in r.stdout.splitlines() if l.strip().startswith("http")]
     return lines[0] if lines else ""
 
 def audio_probe_candidates(direct_url, duration, clip_dur, n_probes=8, jid=""):
     if not direct_url or duration <= 0: return []
-    step      = max(1, int((duration - clip_dur) / max(n_probes - 1, 1)))
-    positions = list(range(0, int(duration - clip_dur) + 1, step))[:n_probes]
+    step      = max(1, int((duration-clip_dur)/max(n_probes-1,1)))
+    positions = list(range(0, int(duration-clip_dur)+1, step))[:n_probes]
     results   = []
     for i, pos in enumerate(positions):
         if jid: job_log(jid, f"Audio probe [{i+1}/{len(positions)}] @ {str(timedelta(seconds=pos))}")
         loudness = probe_segment_loudness(direct_url, pos)
         results.append((pos, loudness))
-        if jid: job_progress(jid, 25 + int(i/len(positions)*30), "audio_probe")
+        if jid: job_progress(jid, 55+int(i/len(positions)*8), "audio_probe")
     vals = [v for _,v in results if v != 0.0]
     if not vals: return []
     mn, mx = min(vals), max(vals)
-    span   = max(mx - mn, 1)
+    span   = max(mx-mn, 1)
     scored = []
     for pos, vol in results:
-        score = 0 if vol==0.0 else round((vol-mn)/span*100,1)
-        scored.append({"start":pos,"end":pos+clip_dur,"score":score,"loudness_db":vol,"method":"audio"})
+        score = 0 if vol==0.0 else round((vol-mn)/span*100, 1)
+        scored.append({"start":pos,"end":pos+clip_dur,"score":score,
+                       "loudness_db":vol,"method":"audio"})
     scored.sort(key=lambda x: -x["score"])
     return scored
 
-# ── Segment Selection ─────────────────────────────────────────────────────────
-def select_top_segments(audio_segs, trans_segs, duration, clip_dur, num_clips):
+# ═══════════════════════════════════════════════════════════════════════════════
+# SEGMENT SELECTION
+# ═══════════════════════════════════════════════════════════════════════════════
+def select_top_segments(audio_segs, trans_segs, whisper_segs, duration, clip_dur, num_clips):
     step = max(1, clip_dur // 4)
     grid = {}
+
+    def add(snap, key, score, extra=None):
+        if snap not in grid:
+            grid[snap] = {"audio":0,"trans":0,"whisper":0,"matched":[],"preview":"","subs":[],"n":0}
+        grid[snap][key]   = score
+        grid[snap]["n"]  += 1
+        if extra:
+            for k,v in extra.items():
+                if v: grid[snap][k] = v
+
     for sg in audio_segs:
-        snap = (sg["start"] // step) * step
-        if snap not in grid: grid[snap] = {"audio":0,"trans":0,"matched":[],"preview":"","n":0}
-        grid[snap]["audio"] = sg["score"]; grid[snap]["n"] += 1
+        add((sg["start"]//step)*step, "audio", sg["score"])
     for sg in trans_segs:
-        snap = (sg["start"] // step) * step
-        if snap not in grid: grid[snap] = {"audio":0,"trans":0,"matched":[],"preview":"","n":0}
-        grid[snap]["trans"] = sg["score"]; grid[snap]["matched"] = sg.get("matched",[])
-        grid[snap]["preview"] = sg.get("preview",""); grid[snap]["n"] += 1
+        add((sg["start"]//step)*step, "trans", sg["score"],
+            {"matched":sg.get("matched",[]),"preview":sg.get("preview","")})
+    for sg in whisper_segs:
+        add((sg["start"]//step)*step, "whisper", sg["score"],
+            {"matched":sg.get("matched",[]),"preview":sg.get("preview",""),
+             "subs":sg.get("subs",[])})
 
     candidates = []
     for snap, d in grid.items():
-        final = min(100, round(d["audio"]*0.45 + d["trans"]*0.55 + (d["n"]-1)*4, 1))
-        end   = min(snap + clip_dur, int(duration))
-        candidates.append({"start":snap,"end":end,"final_score":final,
-                            "audio_score":d["audio"],"trans_score":d["trans"],
-                            "matched":d["matched"],"preview":d["preview"],
-                            "method":"combined" if d["n"]>1 else ("audio" if d["audio"] else "transcript")})
+        final = min(100, round(d["audio"]*0.20 + d["trans"]*0.25 + d["whisper"]*0.55 + (d["n"]-1)*4, 1))
+        end   = min(snap+clip_dur, int(duration))
+        method= ("combined" if d["n"]>1 else
+                 "whisper" if d["whisper"] else
+                 "audio"   if d["audio"]   else "transcript")
+        candidates.append({
+            "start":snap,"end":end,"final_score":final,
+            "audio_score":d["audio"],"trans_score":d["trans"],"whisper_score":d["whisper"],
+            "matched":d["matched"],"preview":d["preview"],"subs":d["subs"],"method":method,
+        })
+
     candidates.sort(key=lambda x: -x["final_score"])
     selected = []
     for cand in candidates:
-        if not any(not (cand["end"] <= s["start"] or cand["start"] >= s["end"]) for s in selected):
+        if not any(not(cand["end"]<=s["start"] or cand["start"]>=s["end"]) for s in selected):
             selected.append(cand)
             if len(selected) >= num_clips: break
     return selected
 
-# ── Smart Crop ────────────────────────────────────────────────────────────────
-def detect_subject_cx(src, n_samples=6):
-    THUMB_W, THUMB_H = 160, 90
-    pr = subprocess.run(["ffprobe","-v","quiet","-print_format","json","-show_entries","format=duration",str(src)],
-                        capture_output=True, text=True, timeout=10)
+# ═══════════════════════════════════════════════════════════════════════════════
+# OPENCV FACE TRACKING
+# ═══════════════════════════════════════════════════════════════════════════════
+def detect_face_cx_opencv(src: Path, n_samples: int = 8) -> float:
+    """
+    Deteksi wajah dengan OpenCV Haar Cascade.
+    Return fraksi 0.0-1.0 (kiri-kanan) posisi wajah dominan.
+    Fallback luminance jika tidak ada wajah.
+    """
+    if not CV2_OK:
+        return detect_subject_cx_ffmpeg(src, n_samples)
+
+    cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+    face_cascade = cv2.CascadeClassifier(cascade_path)
+
+    pr = subprocess.run(
+        ["ffprobe","-v","quiet","-print_format","json",
+         "-show_entries","format=duration", str(src)],
+        capture_output=True, text=True, timeout=10)
     try: vid_dur = float(json.loads(pr.stdout)["format"]["duration"])
     except: vid_dur = 30.0
 
-    step       = max(1.0, vid_dur / (n_samples + 1))
+    step       = max(1.0, vid_dur / (n_samples+1))
     timestamps = [step*(i+1) for i in range(n_samples) if step*(i+1) < vid_dur]
     if not timestamps: timestamps = [vid_dur/2]
-    col_sums = [0] * THUMB_W
+
+    TW, TH = 640, 360
+    face_cx_list = []
+
+    for ts in timestamps:
+        cmd = [
+            "ffmpeg","-y","-ss",f"{ts:.2f}","-i",str(src),
+            "-frames:v","1",
+            "-vf",f"scale={TW}:{TH}:force_original_aspect_ratio=decrease",
+            "-pix_fmt","bgr24","-f","rawvideo","pipe:1"
+        ]
+        r = subprocess.run(cmd, capture_output=True, timeout=15)
+        if r.returncode != 0: continue
+
+        # Deteksi dimensi asli dari stderr
+        stderr_txt = r.stderr.decode(errors="ignore") if r.stderr else ""
+        m = re.search(r"(\d{2,4})x(\d{2,4})", stderr_txt)
+        fw, fh = (int(m.group(1)), int(m.group(2))) if m else (TW, TH)
+        fw = min(fw, TW); fh = min(fh, TH)
+
+        expected = fw * fh * 3
+        if len(r.stdout) < expected: continue
+
+        frame = np.frombuffer(r.stdout[:expected], dtype=np.uint8).reshape((fh, fw, 3))
+        gray  = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(
+            gray, scaleFactor=1.1, minNeighbors=4, minSize=(20,20))
+
+        if len(faces) > 0:
+            x, y, w, h = max(faces, key=lambda f: f[2]*f[3])
+            face_cx_list.append((x + w/2) / fw)
+
+    if face_cx_list:
+        avg = sum(face_cx_list) / len(face_cx_list)
+        return max(0.1, min(0.9, avg))
+
+    # Fallback
+    return detect_subject_cx_ffmpeg(src, n_samples)
+
+
+def detect_subject_cx_ffmpeg(src: Path, n_samples: int = 6) -> float:
+    """Luminance center of mass fallback."""
+    THUMB_W, THUMB_H = 160, 90
+    pr = subprocess.run(
+        ["ffprobe","-v","quiet","-print_format","json",
+         "-show_entries","format=duration", str(src)],
+        capture_output=True, text=True, timeout=10)
+    try: vid_dur = float(json.loads(pr.stdout)["format"]["duration"])
+    except: vid_dur = 30.0
+
+    step       = max(1.0, vid_dur/(n_samples+1))
+    timestamps = [step*(i+1) for i in range(n_samples) if step*(i+1) < vid_dur]
+    if not timestamps: timestamps = [vid_dur/2]
+    col_sums = [0]*THUMB_W
 
     for ts in timestamps:
         cmd = ["ffmpeg","-y","-ss",f"{ts:.2f}","-i",str(src),"-frames:v","1",
@@ -258,75 +466,152 @@ def detect_subject_cx(src, n_samples=6):
     cx = sum(col*col_sums[col] for col in range(THUMB_W))/(total*THUMB_W)
     return max(0.1, min(0.9, cx))
 
+
 def _smart_vf_916(w, h, cx_frac):
     if h >= w:
-        return "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black,setsar=1"
+        return ("scale=1080:1920:force_original_aspect_ratio=decrease,"
+                "pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black,setsar=1")
     crop_w = min(int(h*9/16), w)
     x_left = max(0, min(w-crop_w, int(cx_frac*w - crop_w/2)))
     return f"crop={crop_w}:{h}:{x_left}:0,scale=1080:1920,setsar=1"
 
-# ── Download + Convert ────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+# SUBTITLE SRT
+# ═══════════════════════════════════════════════════════════════════════════════
+def subs_to_srt(subs: list, offset: float = 0) -> str:
+    def fmt_ts(sec):
+        sec = max(0, sec)
+        h   = int(sec//3600)
+        m   = int((sec%3600)//60)
+        s   = int(sec%60)
+        ms  = int((sec%1)*1000)
+        return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+
+    lines = []
+    for i, seg in enumerate(subs, 1):
+        start = seg["start"] - offset
+        end   = seg["end"]   - offset
+        if end <= 0: continue
+        start = max(0, start)
+        text  = seg["text"].strip()
+        if not text: continue
+        lines.append(f"{i}\n{fmt_ts(start)} --> {fmt_ts(end)}\n{text}\n")
+    return "\n".join(lines)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DOWNLOAD + CONVERT
+# ═══════════════════════════════════════════════════════════════════════════════
 def download_segment(url, start, end, out_stem, quality, jid=""):
     fmt_map = {
         "1080":"bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best",
-        "720":"bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best",
-        "480":"bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4]/best",
+        "720": "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best",
+        "480": "bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4]/best",
     }
-    tmpl = str(out_stem) + "_dl.%(ext)s"
+    tmpl = str(out_stem)+"_dl.%(ext)s"
     cmd  = ["yt-dlp","-f",fmt_map.get(quality,fmt_map["720"]),
             "--download-sections",f"*{start}-{end}","--merge-output-format","mp4",
-            "--no-playlist","--no-warnings","--newline","--force-keyframes-at-cuts","-o",tmpl,url]
+            "--no-playlist","--no-warnings","--newline","--force-keyframes-at-cuts",
+            "-o",tmpl,url]
     if jid: job_log(jid, f"Downloading {str(timedelta(seconds=start))} -> {str(timedelta(seconds=end))}")
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
     for line in proc.stdout:
         if jid:
             m = re.search(r"(\d+\.?\d*)\s*%", line)
-            if m: job_progress(jid, 60+int(float(m.group(1))*0.2), "downloading")
+            if m: job_progress(jid, 62+int(float(m.group(1))*0.15), "downloading")
     proc.wait()
-    if proc.returncode!=0: raise RuntimeError("yt-dlp segment download failed")
+    if proc.returncode != 0: raise RuntimeError("yt-dlp segment download failed")
     files = sorted(out_stem.parent.glob(out_stem.name+"_dl.*"))
     if not files: raise RuntimeError("Downloaded file not found")
     return files[0]
 
-def convert_clip(src, dst, clip_dur, use_916, jid=""):
-    pr = subprocess.run(["ffprobe","-v","quiet","-print_format","json","-show_streams",str(src)],
-                        capture_output=True, text=True)
+
+def convert_clip(src: Path, dst: Path, clip_dur: int, use_916: bool,
+                 subs: list, seg_start: float, jid=""):
+    # Probe video size
+    pr = subprocess.run(
+        ["ffprobe","-v","quiet","-print_format","json","-show_streams",str(src)],
+        capture_output=True, text=True)
     w, h = 1280, 720
     try:
         for s in json.loads(pr.stdout).get("streams",[]):
-            if s.get("codec_type")=="video": w,h=int(s.get("width",1280)),int(s.get("height",720)); break
+            if s.get("codec_type")=="video":
+                w,h=int(s.get("width",1280)),int(s.get("height",720)); break
     except: pass
 
+    # Face tracking
     if use_916:
-        if jid: job_log(jid, "Analyzing subject position for smart crop...")
-        cx = detect_subject_cx(src)
+        method_str = "(OpenCV)" if CV2_OK else "(luminance fallback)"
+        if jid: job_log(jid, f"Face tracking {method_str}...")
+        cx = detect_face_cx_opencv(src) if CV2_OK else detect_subject_cx_ffmpeg(src)
         vf = _smart_vf_916(w, h, cx)
+        side = "kiri" if cx<0.4 else "kanan" if cx>0.6 else "tengah"
+        if jid: job_log(jid, f"Face detected at {cx*100:.0f}% ({side})")
     else:
         vf = None
 
-    cmd = ["ffmpeg","-y","-i",str(src),"-t",str(clip_dur)]
-    if vf: cmd += ["-vf",vf]
-    cmd += ["-c:v","libx264","-preset","fast","-crf","23","-c:a","aac","-b:a","128k","-movflags","+faststart",str(dst)]
-    if jid: job_log(jid, f"Converting {'9:16 portrait' if use_916 else '16:9 landscape'}...")
-    job_progress(jid, 85, "converting")
-    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
-    proc.wait()
-    if proc.returncode!=0 and use_916:
-        vf2  = "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black,setsar=1"
-        cmd2 = ["ffmpeg","-y","-i",str(src),"-t",str(clip_dur),"-vf",vf2,
-                "-c:v","libx264","-preset","fast","-crf","23","-c:a","aac","-b:a","128k","-movflags","+faststart",str(dst)]
-        proc2 = subprocess.Popen(cmd2, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
-        proc2.wait()
-        if proc2.returncode!=0: raise RuntimeError("FFmpeg conversion failed")
+    # Tulis SRT
+    srt_path = None
+    if subs:
+        srt_path = src.parent / (src.stem+".srt")
+        srt_path.write_text(subs_to_srt(subs, seg_start), encoding="utf-8")
+        if jid: job_log(jid, f"Subtitle: {len(subs)} lines", "ok")
 
-# ── Job Workers ───────────────────────────────────────────────────────────────
+    # Build filter chain
+    filters = []
+    if vf: filters.append(vf)
+    if srt_path and srt_path.exists():
+        srt_esc = str(srt_path).replace("\\","/").replace(":",r"\:")
+        filters.append(
+            f"subtitles='{srt_esc}':force_style='"
+            f"FontName=Arial,FontSize=16,PrimaryColour=&HFFFFFF,"
+            f"OutlineColour=&H000000,Outline=2,Bold=1,"
+            f"Alignment=2,MarginV=40'"
+        )
+
+    vf_str = ",".join(filters) if filters else None
+
+    cmd = ["ffmpeg","-y","-i",str(src),"-t",str(clip_dur)]
+    if vf_str: cmd += ["-vf", vf_str]
+    cmd += ["-c:v","libx264","-preset","fast","-crf","23",
+            "-c:a","aac","-b:a","128k","-movflags","+faststart",str(dst)]
+
+    if jid: job_log(jid, f"Converting {'9:16' if use_916 else '16:9'}"
+                         f"{' + subtitle' if srt_path else ''}...")
+    job_progress(jid, 85, "converting")
+
+    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+    stderr_out = proc.stderr.read()
+    proc.wait()
+
+    if srt_path and srt_path.exists():
+        srt_path.unlink(missing_ok=True)
+
+    if proc.returncode != 0:
+        # Retry tanpa subtitle
+        if subs:
+            if jid: job_log(jid, "Subtitle burn failed, retrying without subtitle...", "warn")
+            cmd2 = ["ffmpeg","-y","-i",str(src),"-t",str(clip_dur)]
+            if vf: cmd2 += ["-vf", vf]
+            cmd2 += ["-c:v","libx264","-preset","fast","-crf","23",
+                     "-c:a","aac","-b:a","128k","-movflags","+faststart",str(dst)]
+            proc2 = subprocess.Popen(cmd2, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+            proc2.wait()
+            if proc2.returncode != 0:
+                raise RuntimeError(f"FFmpeg failed: {stderr_out[-200:]}")
+        else:
+            raise RuntimeError(f"FFmpeg failed: {stderr_out[-200:]}")
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# JOB WORKERS
+# ═══════════════════════════════════════════════════════════════════════════════
 def run_analysis_job(jid, params):
     try:
         jobs[jid]["status"] = "running"
-        url      = params["url"]
-        clip_dur = int(params.get("clip_dur", 30))
-        num_clips= int(params.get("num_clips", 3))
+        url       = params["url"]
+        clip_dur  = int(params.get("clip_dur", 30))
+        num_clips = int(params.get("num_clips", 3))
 
+        # Step 1: Metadata
         job_log(jid, "Fetching video metadata...")
         job_progress(jid, 5, "metadata")
         meta     = fetch_info(url)
@@ -339,69 +624,87 @@ def run_analysis_job(jid, params):
             "thumbnail":meta.get("thumbnail",""),
             "score":    sc,
         }
-        job_log(jid, f"Video found: {meta.get('title','')[:60]}", "ok")
-        job_progress(jid, 12, "metadata")
+        job_log(jid, f"Video: {meta.get('title','')[:60]}", "ok")
+        job_progress(jid, 10, "metadata")
 
         tmp_dir = TEMP / jid
         tmp_dir.mkdir(parents=True, exist_ok=True)
 
-        job_log(jid, "Fetching transcript...")
-        job_progress(jid, 15, "transcript")
+        # Step 2: YouTube subtitle (cepat)
+        job_log(jid, "Trying YouTube subtitles...")
+        job_progress(jid, 12, "transcript")
         trans_segs = []
         try:
             raw_subs = fetch_transcript(url, tmp_dir)
             if raw_subs:
                 trans_segs = score_transcript(raw_subs, duration, clip_dur)
-                job_log(jid, f"Transcript: {len(raw_subs)} lines, {len(trans_segs)} windows", "ok")
+                job_log(jid, f"YouTube subtitle: {len(raw_subs)} lines", "ok")
             else:
-                job_log(jid, "No subtitles available", "warn")
+                job_log(jid, "No YouTube subtitles", "warn")
         except Exception as e:
-            job_log(jid, f"Transcript: {e}", "warn")
+            job_log(jid, f"Subtitle: {e}", "warn")
 
-        job_log(jid, "Probing audio loudness...")
-        job_progress(jid, 22, "audio_probe")
-        audio_segs = []
+        # Step 3: Direct URL
+        job_log(jid, "Getting stream URL...")
+        job_progress(jid, 15, "stream_url")
+        direct_url = ""
         try:
             direct_url = get_direct_url(url)
-            if direct_url:
-                n_probes   = max(6, min(12, int(duration // max(clip_dur,1))))
-                audio_segs = audio_probe_candidates(direct_url, duration, clip_dur, n_probes, jid)
-                job_log(jid, f"Audio: {len(audio_segs)} candidate positions", "ok")
-            else:
-                job_log(jid, "Could not get direct stream URL", "warn")
+            if direct_url: job_log(jid, "Stream URL ready", "ok")
+            else: job_log(jid, "Stream URL failed", "warn")
         except Exception as e:
-            job_log(jid, f"Audio probe: {e}", "warn")
+            job_log(jid, f"Stream URL: {e}", "warn")
 
+        # Step 4: Whisper probe
+        whisper_segs = []
+        if WHISPER_OK and direct_url:
+            job_log(jid, f"Whisper transcription (model={os.environ.get('WHISPER_MODEL','base')})...")
+            job_progress(jid, 18, "whisper_probe")
+            try:
+                n_p = max(4, min(8, int(duration // max(clip_dur,1))))
+                whisper_segs = whisper_probe_candidates(direct_url, duration, clip_dur, n_p, tmp_dir, jid)
+                job_log(jid, f"Whisper: {len(whisper_segs)} segments", "ok")
+            except Exception as e:
+                job_log(jid, f"Whisper: {e}", "warn")
+        elif not WHISPER_OK:
+            job_log(jid, "faster-whisper not installed", "warn")
+
+        # Step 5: Audio loudness probe
+        audio_segs = []
+        if direct_url:
+            job_log(jid, "Probing audio loudness...")
+            job_progress(jid, 55, "audio_probe")
+            try:
+                n_p = max(6, min(12, int(duration // max(clip_dur,1))))
+                audio_segs = audio_probe_candidates(direct_url, duration, clip_dur, n_p, jid)
+                job_log(jid, f"Audio: {len(audio_segs)} candidate positions", "ok")
+            except Exception as e:
+                job_log(jid, f"Audio probe: {e}", "warn")
+
+        # Step 6: Select
         job_log(jid, f"Selecting top {num_clips} segments...")
-        job_progress(jid, 58, "selecting")
-        best = select_top_segments(audio_segs, trans_segs, duration, clip_dur, num_clips)
+        job_progress(jid, 65, "selecting")
+        best = select_top_segments(audio_segs, trans_segs, whisper_segs, duration, clip_dur, num_clips)
 
-        # Fallback otomatis jika semua sinyal gagal
+        # Fallback
         if not best:
-            job_log(jid, "No signals detected, using auto-split fallback...", "warn")
-            usable = max(1, int(duration) - clip_dur)
-            step   = max(clip_dur, usable // max(num_clips, 1))
-            best   = []
+            job_log(jid, "No signals detected, using auto-split...", "warn")
+            usable = max(1, int(duration)-clip_dur)
+            step   = max(clip_dur, usable // max(num_clips,1))
             for i in range(num_clips):
-                start = i * step
-                end   = min(start + clip_dur, int(duration))
+                start = i*step; end = min(start+clip_dur, int(duration))
                 if start >= int(duration): break
                 best.append({
-                    "start":       start,
-                    "end":         end,
-                    "final_score": round(max(10, 50 - i * 5), 1),
-                    "audio_score": 0,
-                    "trans_score": 0,
-                    "matched":     [],
-                    "preview":     "",
-                    "method":      "auto-fallback",
+                    "start":start,"end":end,"final_score":round(max(10,50-i*5),1),
+                    "audio_score":0,"trans_score":0,"whisper_score":0,
+                    "matched":[],"preview":"","subs":[],"method":"auto-fallback",
                 })
-            job_log(jid, f"Auto-split: {len(best)} segment(s) generated", "warn")
+            job_log(jid, f"Auto-split: {len(best)} segments", "warn")
 
         jobs[jid]["segments"] = best
         jobs[jid]["status"]   = "segments_ready"
         jobs[jid]["progress"] = 100
-        job_log(jid, f"Analysis complete. Found {len(best)} segment(s).", "ok")
+        job_log(jid, f"Done. {len(best)} segment(s) ready.", "ok")
 
     except Exception as e:
         jobs[jid]["status"] = "error"
@@ -410,6 +713,7 @@ def run_analysis_job(jid, params):
     finally:
         shutil.rmtree(TEMP / jid, ignore_errors=True)
 
+
 def run_download_job(jid, params):
     try:
         jobs[jid]["status"] = "downloading"
@@ -417,6 +721,7 @@ def run_download_job(jid, params):
         clip_dur     = int(params.get("clip_dur", 30))
         quality      = params.get("quality", "720")
         use_916      = params.get("aspect", "916") == "916"
+        burn_subs    = params.get("burn_subs", True)
         segments_sel = params.get("segments", [])
         best         = jobs[jid].get("segments", [])
 
@@ -426,13 +731,30 @@ def run_download_job(jid, params):
         out_files = []
         for idx, seg in enumerate(to_dl, 1):
             job_log(jid, f"Processing clip {idx}/{len(to_dl)}...")
-            job_progress(jid, int(idx/len(to_dl)*85), "processing")
+            job_progress(jid, 60+int(idx/len(to_dl)*35), "processing")
+
             ts       = datetime.now().strftime("%Y%m%d_%H%M%S")
             out_stem = CLIPS / f"seg_{seg['start']}_{ts}"
             ar_sfx   = "9x16" if use_916 else "16x9"
-            final    = CLIPS / f"clip_{seg['start']}s_{clip_dur}s_{ts}_{ar_sfx}.mp4"
-            raw      = download_segment(url, seg["start"], seg["end"], out_stem, quality, jid)
-            convert_clip(raw, final, clip_dur, use_916, jid)
+            sub_sfx  = "_sub" if burn_subs else ""
+            final    = CLIPS / f"clip_{seg['start']}s_{clip_dur}s_{ts}_{ar_sfx}{sub_sfx}.mp4"
+
+            raw = download_segment(url, seg["start"], seg["end"], out_stem, quality, jid)
+
+            # Pakai subs dari whisper probe
+            subs_to_burn = seg.get("subs", []) if burn_subs else []
+
+            # Jika tidak ada subs dari probe, transkripsi langsung dari file
+            if not subs_to_burn and burn_subs and WHISPER_OK:
+                job_log(jid, "Whisper on downloaded clip...", "info")
+                clip_subs = transcribe_audio(raw, jid)
+                if clip_subs:
+                    subs_to_burn = clip_subs
+                    job_log(jid, f"Whisper clip: {len(clip_subs)} lines", "ok")
+                else:
+                    job_log(jid, "No speech detected in clip", "warn")
+
+            convert_clip(raw, final, clip_dur, use_916, subs_to_burn, float(seg["start"]), jid)
             raw.unlink(missing_ok=True)
             out_files.append(final.name)
             job_log(jid, f"Clip {idx} ready: {final.name}", "ok")
@@ -447,7 +769,9 @@ def run_download_job(jid, params):
         jobs[jid]["error"]  = str(e)
         job_log(jid, f"Error: {e}", "error")
 
-# ── Routes ────────────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+# ROUTES
+# ═══════════════════════════════════════════════════════════════════════════════
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -460,17 +784,22 @@ def api_analyze():
     jid = str(uuid.uuid4())[:8]
     jobs[jid] = {"status":"queued","progress":0,"stage":"","logs":[],
                  "result":None,"error":None,"meta":None,"segments":None,"params":data}
-    threading.Thread(target=run_analysis_job, args=(jid, data), daemon=True).start()
+    threading.Thread(target=run_analysis_job, args=(jid,data), daemon=True).start()
     return jsonify({"job_id": jid})
 
 @app.route("/api/download_clips", methods=["POST"])
 def api_download_clips():
     data = request.json or {}
     jid  = data.get("job_id")
-    if not jid or jid not in jobs: return jsonify({"error": "Invalid job ID"}), 400
-    params = {**jobs[jid].get("params", {}), "segments": data.get("segments", []),
-              "quality": data.get("quality","720"), "aspect": data.get("aspect","916")}
-    threading.Thread(target=run_download_job, args=(jid, params), daemon=True).start()
+    if not jid or jid not in jobs: return jsonify({"error":"Invalid job ID"}), 400
+    params = {
+        **jobs[jid].get("params",{}),
+        "segments":  data.get("segments",[]),
+        "quality":   data.get("quality","720"),
+        "aspect":    data.get("aspect","916"),
+        "burn_subs": data.get("burn_subs", True),
+    }
+    threading.Thread(target=run_download_job, args=(jid,params), daemon=True).start()
     return jsonify({"ok": True})
 
 @app.route("/api/stream/<jid>")
@@ -479,8 +808,7 @@ def api_stream(jid):
         last_log = 0
         while True:
             if jid not in jobs:
-                yield f"data: {json.dumps({'error':'job not found'})}\n\n"
-                break
+                yield f"data: {json.dumps({'error':'job not found'})}\n\n"; break
             j = jobs[jid]
             new_logs = j["logs"][last_log:]
             last_log = len(j["logs"])
@@ -490,13 +818,12 @@ def api_stream(jid):
                 "stage":    j.get("stage",""),
                 "new_logs": new_logs,
                 "meta":     j.get("meta"),
-                "segments": j.get("segments") if j["status"] == "segments_ready" else None,
+                "segments": j.get("segments") if j["status"]=="segments_ready" else None,
                 "result":   j.get("result"),
                 "error":    j.get("error"),
             }
             yield f"data: {json.dumps(payload)}\n\n"
-            if j["status"] in ("done", "error"):
-                break
+            if j["status"] in ("done","error"): break
             time.sleep(0.8)
     return Response(generate(), mimetype="text/event-stream",
                     headers={"Cache-Control":"no-cache","X-Accel-Buffering":"no"})
@@ -505,9 +832,11 @@ def api_stream(jid):
 def api_status(jid):
     if jid not in jobs: return jsonify({"error":"Job not found"}), 404
     j = jobs[jid]
-    return jsonify({"status":j["status"],"progress":j["progress"],"stage":j.get("stage",""),
-                    "logs":j["logs"][-30:],"meta":j.get("meta"),"segments":j.get("segments"),
-                    "result":j.get("result"),"error":j.get("error")})
+    return jsonify({
+        "status":j["status"],"progress":j["progress"],"stage":j.get("stage",""),
+        "logs":j["logs"][-30:],"meta":j.get("meta"),"segments":j.get("segments"),
+        "result":j.get("result"),"error":j.get("error"),
+    })
 
 @app.route("/api/files")
 def api_files():
@@ -528,6 +857,16 @@ def api_delete_file(filename):
     if path.exists(): path.unlink()
     return jsonify({"ok": True})
 
+@app.route("/api/capabilities")
+def api_capabilities():
+    return jsonify({
+        "whisper":       WHISPER_OK,
+        "opencv":        CV2_OK,
+        "whisper_model": os.environ.get("WHISPER_MODEL","base"),
+    })
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
+    print(f"Whisper : {'OK - model=' + os.environ.get('WHISPER_MODEL','base') if WHISPER_OK else 'NOT AVAILABLE'}")
+    print(f"OpenCV  : {'OK' if CV2_OK else 'NOT AVAILABLE'}")
     app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
