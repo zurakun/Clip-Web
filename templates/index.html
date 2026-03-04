@@ -910,6 +910,14 @@
             </div>
           </div>
         </div>
+        <div style="margin-top:12px">
+          <label>Subtitle</label>
+          <div class="toggle-group">
+            <button class="toggle-btn active" id="sub-on"  onclick="setBurnSubs(this,true)">Burn Subtitle</button>
+            <button class="toggle-btn"        id="sub-off" onclick="setBurnSubs(this,false)">No Subtitle</button>
+          </div>
+          <div class="help-text" style="margin-top:6px">Auto-generated via Whisper AI -- Bahasa Indonesia / English</div>
+        </div>
       </div>
 
       <button class="btn-primary" id="download-btn" onclick="startDownload()" style="margin-top:14px" disabled>
@@ -956,6 +964,7 @@ let currentJobId = null;
 let selectedSegments = new Set();
 let currentSegments  = [];
 let currentAspect    = '916';
+let currentBurnSubs  = true;
 let currentUrl       = '';
 let currentClipDur   = 30;
 let sseSource        = null;
@@ -1262,6 +1271,12 @@ function setAspect(btn, val) {
   btn.classList.add('active');
 }
 
+function setBurnSubs(btn, val) {
+  currentBurnSubs = val;
+  btn.closest('.toggle-group').querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
 // ── Start Download ────────────────────────────────────────────────────────────
 async function startDownload() {
   if (selectedSegments.size === 0) { toast('Select at least one segment'); return; }
@@ -1282,7 +1297,7 @@ async function startDownload() {
     const res = await fetch('/api/download_clips', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({job_id: currentJobId, segments: segs, quality, aspect: currentAspect})
+      body: JSON.stringify({job_id: currentJobId, segments: segs, quality, aspect: currentAspect, burn_subs: currentBurnSubs})
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
