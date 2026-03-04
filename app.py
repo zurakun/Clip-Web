@@ -477,24 +477,26 @@ def api_download_clips():
 def api_stream(jid):
     def generate():
         last_log = 0
-        last_status = ""
         while True:
             if jid not in jobs:
-                yield f"data: {json.dumps({'error':'job not found'})}\n\n"; break
+                yield f"data: {json.dumps({'error':'job not found'})}\n\n"
+                break
             j = jobs[jid]
-            new_logs  = j["logs"][last_log:]
-            last_log  = len(j["logs"])
-            payload   = {
-                "status": j["status"], "progress": j["progress"], "stage": j.get("stage",""),
+            new_logs = j["logs"][last_log:]
+            last_log = len(j["logs"])
+            payload  = {
+                "status":   j["status"],
+                "progress": j["progress"],
+                "stage":    j.get("stage",""),
                 "new_logs": new_logs,
-                "meta":     j.get("meta") if j.get("meta") and last_status!=j["status"] else None,
-                "segments": j.get("segments") if j["status"]=="segments_ready" else None,
+                "meta":     j.get("meta"),
+                "segments": j.get("segments") if j["status"] == "segments_ready" else None,
                 "result":   j.get("result"),
                 "error":    j.get("error"),
             }
-            last_status = j["status"]
             yield f"data: {json.dumps(payload)}\n\n"
-            if j["status"] in ("done","error","segments_ready"): break
+            if j["status"] in ("done", "error"):
+                break
             time.sleep(0.8)
     return Response(generate(), mimetype="text/event-stream",
                     headers={"Cache-Control":"no-cache","X-Accel-Buffering":"no"})
