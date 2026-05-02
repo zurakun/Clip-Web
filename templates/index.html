@@ -1,874 +1,958 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Clipper Tool</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
   :root {
-    --bg:        #0a0a0c;
-    --bg2:       #111115;
-    --bg3:       #18181f;
-    --bg4:       #1e1e28;
-    --border:    #2a2a38;
-    --border2:   #3a3a50;
-    --text:      #e8e8f0;
-    --text2:     #9090a8;
-    --text3:     #5a5a72;
-    --accent:    #6c63ff;
-    --accent2:   #8b5cf6;
-    --accent3:   #a78bfa;
-    --green:     #22c55e;
-    --red:       #ef4444;
-    --yellow:    #f59e0b;
-    --cyan:      #06b6d4;
-    --glow:      rgba(108,99,255,0.15);
-    --radius:    12px;
+    --blue-950: #0a1628;
+    --blue-900: #0f2040;
+    --blue-800: #1a3a6e;
+    --blue-700: #1d4ed8;
+    --blue-600: #2563eb;
+    --blue-500: #3b82f6;
+    --blue-400: #60a5fa;
+    --blue-300: #93c5fd;
+    --blue-100: #dbeafe;
+    --blue-50:  #eff6ff;
+    --white:    #ffffff;
+    --gray-50:  #f8fafc;
+    --gray-100: #f1f5f9;
+    --gray-200: #e2e8f0;
+    --gray-300: #cbd5e1;
+    --gray-400: #94a3b8;
+    --gray-500: #64748b;
+    --gray-600: #475569;
+    --gray-700: #334155;
+    --gray-900: #0f172a;
+    --green:    #22c55e;
+    --green-bg: #f0fdf4;
+    --green-border: #bbf7d0;
+    --red:      #ef4444;
+    --red-bg:   #fef2f2;
+    --yellow:   #f59e0b;
+    --yellow-bg:#fefce8;
+    --cyan:     #06b6d4;
+    --radius:   12px;
     --radius-sm: 8px;
   }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
   html { scroll-behavior: smooth; }
 
   body {
-    font-family: 'Space Grotesk', sans-serif;
-    background: var(--bg);
-    color: var(--text);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: var(--gray-50);
+    color: var(--gray-900);
     min-height: 100vh;
-    overflow-x: hidden;
-    font-size: 15px;
+    font-size: 14px;
     line-height: 1.6;
+    overflow-x: hidden;
   }
 
-  /* ── Grid BG ── */
-  body::before {
-    content: '';
-    position: fixed; inset: 0; z-index: 0;
-    background-image:
-      linear-gradient(rgba(108,99,255,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(108,99,255,0.03) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events: none;
-  }
-
-  body::after {
-    content: '';
-    position: fixed;
-    top: -30vh; left: 50%;
-    transform: translateX(-50%);
-    width: 80vw; height: 60vh;
-    background: radial-gradient(ellipse at center, rgba(108,99,255,0.08) 0%, transparent 70%);
-    pointer-events: none; z-index: 0;
-  }
-
-  .container {
-    position: relative; z-index: 1;
-    max-width: 860px;
-    margin: 0 auto;
-    padding: 0 16px 80px;
-  }
-
-  /* ── Header ── */
-  header {
-    text-align: center;
-    padding: 40px 0 32px;
-  }
-
-  .logo-mark {
-    display: inline-flex;
-    align-items: center;
+  /* ══════════════════════════════════════════
+     TOPBAR
+  ══════════════════════════════════════════ */
+  .topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--white);
+    border-bottom: 1px solid var(--gray-200);
+    height: 56px;
+    display: flex; align-items: center;
+    padding: 0 16px;
     gap: 10px;
-    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   }
 
-  .logo-icon {
+  /* Hamburger button */
+  .hamburger {
     width: 36px; height: 36px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    border-radius: 10px;
     display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 0 20px rgba(108,99,255,0.4);
+    border: none; background: transparent;
+    border-radius: 8px; cursor: pointer;
+    color: var(--gray-600);
+    transition: all 0.15s; flex-shrink: 0;
   }
 
-  .logo-icon svg { width: 20px; height: 20px; fill: white; }
+  .hamburger:hover { background: var(--gray-100); color: var(--gray-900); }
+  .hamburger svg   { width: 20px; height: 20px; stroke: currentColor; fill: none; }
 
-  h1 {
-    font-size: clamp(22px, 5vw, 32px);
-    font-weight: 700;
-    letter-spacing: -0.5px;
-    background: linear-gradient(135deg, #fff 30%, var(--accent3));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+  /* Logo */
+  .topbar-logo {
+    display: flex; align-items: center; gap: 8px;
+    text-decoration: none; flex-shrink: 0;
   }
 
-  .tagline {
-    color: var(--text3);
-    font-size: 13px;
+  .topbar-logo-icon {
+    width: 30px; height: 30px;
+    background: var(--blue-600); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.35);
+  }
+
+  .topbar-logo-icon svg { width: 16px; height: 16px; fill: white; }
+  .topbar-logo-text { font-size: 15px; font-weight: 800; color: var(--gray-900); letter-spacing: -0.3px; }
+  .topbar-logo-badge {
     font-family: 'JetBrains Mono', monospace;
-    margin-top: 6px;
-    letter-spacing: 0.5px;
+    font-size: 9px; color: var(--blue-600);
+    background: var(--blue-50); border: 1px solid var(--blue-200);
+    padding: 1px 6px; border-radius: 20px;
+    display: none;
   }
+
+  @media (min-width: 500px) { .topbar-logo-badge { display: inline; } }
+
+  .topbar-spacer { flex: 1; }
+
+  /* Nav tabs in topbar */
+  .topbar-tabs {
+    display: flex; gap: 2px;
+    background: var(--gray-100);
+    border-radius: 9px; padding: 3px;
+  }
+
+  .topbar-tab {
+    display: flex; align-items: center; gap: 5px;
+    padding: 6px 12px;
+    border: none; border-radius: 7px;
+    background: transparent;
+    color: var(--gray-500);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .topbar-tab svg { width: 13px; height: 13px; stroke: currentColor; fill: none; flex-shrink: 0; }
+
+  .topbar-tab.active {
+    background: var(--white);
+    color: var(--blue-700);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+
+  /* Topbar right actions */
+  .topbar-actions { display: flex; align-items: center; gap: 6px; }
+
+  .btn-icon {
+    width: 34px; height: 34px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--gray-200);
+    background: var(--white); border-radius: 8px;
+    cursor: pointer; color: var(--gray-500);
+    transition: all 0.15s; text-decoration: none;
+    flex-shrink: 0;
+  }
+
+  .btn-icon:hover { background: var(--gray-50); border-color: var(--gray-300); color: var(--gray-900); }
+  .btn-icon svg { width: 15px; height: 15px; stroke: currentColor; fill: none; }
+
+  /* Profile button */
+  .profile-btn {
+    display: flex; align-items: center; gap: 7px;
+    padding: 4px 10px 4px 4px;
+    border: 1px solid var(--gray-200);
+    background: var(--white); border-radius: 20px;
+    cursor: pointer; transition: all 0.15s;
+    text-decoration: none;
+  }
+
+  .profile-btn:hover { background: var(--gray-50); border-color: var(--blue-300); }
+
+  .profile-avatar {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800; color: white;
+    flex-shrink: 0;
+  }
+
+  .profile-name {
+    font-size: 12px; font-weight: 700; color: var(--gray-700);
+    max-width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    display: none;
+  }
+
+  @media (min-width: 480px) { .profile-name { display: block; } }
+
+  /* ══════════════════════════════════════════
+     DRAWER (Hamburger Menu)
+  ══════════════════════════════════════════ */
+  .drawer-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.3); backdrop-filter: blur(2px);
+    opacity: 0; pointer-events: none; transition: opacity 0.25s;
+  }
+
+  .drawer-overlay.open { opacity: 1; pointer-events: all; }
+
+  .drawer {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    width: 270px; z-index: 201;
+    background: var(--white);
+    box-shadow: 4px 0 24px rgba(0,0,0,0.12);
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+    display: flex; flex-direction: column;
+  }
+
+  .drawer-overlay.open .drawer { transform: translateX(0); }
+
+  .drawer-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--gray-100);
+  }
+
+  .drawer-logo { display: flex; align-items: center; gap: 9px; }
+
+  .drawer-logo-icon {
+    width: 32px; height: 32px;
+    background: var(--blue-600); border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .drawer-logo-icon svg { width: 17px; height: 17px; fill: white; }
+  .drawer-logo-text { font-size: 15px; font-weight: 800; color: var(--gray-900); letter-spacing: -0.3px; }
+
+  .drawer-close {
+    width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center;
+    border: none; background: var(--gray-100); border-radius: 7px;
+    cursor: pointer; color: var(--gray-500); transition: all 0.15s;
+  }
+
+  .drawer-close:hover { background: var(--gray-200); }
+  .drawer-close svg { width: 14px; height: 14px; stroke: currentColor; fill: none; }
+
+  /* Drawer user card */
+  .drawer-user {
+    margin: 14px 16px;
+    padding: 12px;
+    background: var(--blue-50);
+    border: 1px solid var(--blue-100);
+    border-radius: var(--radius);
+    display: flex; align-items: center; gap: 10px;
+    text-decoration: none;
+    transition: all 0.15s;
+  }
+
+  .drawer-user:hover { background: var(--blue-100); }
+
+  .drawer-user-avatar {
+    width: 38px; height: 38px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 800; color: white; flex-shrink: 0;
+  }
+
+  .drawer-user-name { font-size: 13px; font-weight: 700; color: var(--gray-900); }
+  .drawer-user-role {
+    font-size: 11px; color: var(--blue-600);
+    font-family: 'JetBrains Mono', monospace; margin-top: 1px;
+  }
+
+  /* Drawer nav */
+  .drawer-section {
+    font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+    text-transform: uppercase; color: var(--gray-400);
+    padding: 10px 18px 4px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .drawer-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 18px;
+    color: var(--gray-600); font-size: 13px; font-weight: 500;
+    cursor: pointer; text-decoration: none;
+    border-left: 2px solid transparent;
+    transition: all 0.15s;
+  }
+
+  .drawer-item:hover { background: var(--gray-50); color: var(--gray-900); border-left-color: var(--gray-200); }
+
+  .drawer-item.active { background: var(--blue-50); color: var(--blue-700); border-left-color: var(--blue-500); font-weight: 600; }
+
+  .drawer-item svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
+  .drawer-divider { height: 1px; background: var(--gray-100); margin: 8px 0; }
+
+  .drawer-footer {
+    margin-top: auto; padding: 14px 16px;
+    border-top: 1px solid var(--gray-100);
+  }
+
+  .drawer-logout {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px;
+    background: var(--red-bg); border: 1px solid #fecaca;
+    border-radius: var(--radius-sm); color: var(--red);
+    font-size: 13px; font-weight: 600;
+    cursor: pointer; text-decoration: none;
+    transition: all 0.15s;
+  }
+
+  .drawer-logout:hover { background: #fee2e2; }
+  .drawer-logout svg { width: 14px; height: 14px; stroke: currentColor; fill: none; }
+
+  /* ══════════════════════════════════════════
+     MAIN CONTENT
+  ══════════════════════════════════════════ */
+  .container {
+    max-width: 860px; margin: 0 auto;
+    padding: 20px 16px 80px;
+  }
+
+  /* Page header */
+  .page-head {
+    margin-bottom: 18px;
+  }
+
+  .page-title { font-size: 18px; font-weight: 800; color: var(--gray-900); letter-spacing: -0.4px; }
+  .page-sub   { font-size: 12px; color: var(--gray-400); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+
+  /* Tab panels */
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
 
   /* ── Cards ── */
   .card {
-    background: var(--bg2);
-    border: 1px solid var(--border);
+    background: var(--white);
+    border: 1px solid var(--gray-200);
     border-radius: var(--radius);
     padding: 20px;
-    margin-bottom: 16px;
-    transition: border-color 0.2s;
+    margin-bottom: 14px;
+    transition: box-shadow 0.2s;
   }
 
-  .card:hover { border-color: var(--border2); }
+  .card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
 
   .card-title {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 1.5px;
-    color: var(--text3);
-    text-transform: uppercase;
-    margin-bottom: 16px;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 1.2px; color: var(--gray-400);
+    text-transform: uppercase; margin-bottom: 14px;
     font-family: 'JetBrains Mono', monospace;
+    display: flex; align-items: center; gap: 7px;
   }
+
+  .card-title svg { width: 13px; height: 13px; stroke: var(--blue-500); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
   /* ── Form elements ── */
   .input-group { margin-bottom: 14px; }
 
   label {
-    display: block;
-    font-size: 12px;
-    color: var(--text2);
-    margin-bottom: 6px;
-    font-weight: 500;
-    letter-spacing: 0.3px;
+    display: block; font-size: 12px; font-weight: 600;
+    color: var(--gray-600); margin-bottom: 5px;
   }
 
   input[type="text"], input[type="number"], select {
     width: 100%;
-    background: var(--bg3);
-    border: 1px solid var(--border);
+    background: var(--gray-50);
+    border: 1.5px solid var(--gray-200);
     border-radius: var(--radius-sm);
-    color: var(--text);
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 14px;
-    padding: 10px 14px;
-    outline: none;
+    color: var(--gray-900);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 14px; font-weight: 500;
+    padding: 10px 14px; outline: none;
     transition: border-color 0.2s, box-shadow 0.2s;
-    -webkit-appearance: none;
-    appearance: none;
+    -webkit-appearance: none; appearance: none;
   }
 
-  input[type="text"]:focus, input[type="number"]:focus, select:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(108,99,255,0.12);
+  input:focus, select:focus {
+    border-color: var(--blue-500);
+    background: var(--white);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
   }
 
   select {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239090a8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2394a3b8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 12px center;
-    padding-right: 36px;
-    cursor: pointer;
+    padding-right: 36px; cursor: pointer;
   }
 
-  select option { background: var(--bg3); }
+  select option { background: var(--white); }
 
-  /* ── Grid layouts ── */
+  /* Grid */
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
 
-  @media (max-width: 500px) {
-    .grid-2, .grid-3 { grid-template-columns: 1fr; }
-  }
+  @media (max-width: 500px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
 
-  /* ── Toggle buttons ── */
+  /* Toggle group */
   .toggle-group {
-    display: flex;
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 3px;
-    gap: 3px;
+    display: flex; background: var(--gray-100);
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--radius-sm); padding: 3px; gap: 3px;
   }
 
   .toggle-btn {
-    flex: 1;
-    padding: 8px 10px;
-    border: none;
-    border-radius: 6px;
-    background: transparent;
-    color: var(--text2);
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s;
-    text-align: center;
+    flex: 1; padding: 8px 8px;
+    border: none; border-radius: 6px;
+    background: transparent; color: var(--gray-500);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s;
     white-space: nowrap;
   }
 
   .toggle-btn.active {
-    background: var(--accent);
-    color: white;
-    box-shadow: 0 2px 8px rgba(108,99,255,0.3);
+    background: var(--white); color: var(--blue-700);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
   }
 
-  /* ── Main button ── */
+  /* Buttons */
   .btn-primary {
-    width: 100%;
-    padding: 13px 20px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    border: none;
-    border-radius: var(--radius-sm);
-    color: white;
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    letter-spacing: 0.2px;
+    width: 100%; padding: 12px 20px;
+    background: var(--blue-600);
+    border: none; border-radius: var(--radius-sm);
+    color: white; font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 14px; font-weight: 700;
+    cursor: pointer; letter-spacing: 0.2px;
     transition: all 0.2s;
-    box-shadow: 0 4px 16px rgba(108,99,255,0.3);
+    box-shadow: 0 4px 14px rgba(37,99,235,0.3);
     margin-top: 4px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
   }
 
-  .btn-primary:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 24px rgba(108,99,255,0.4);
-  }
-
+  .btn-primary:hover:not(:disabled) { background: var(--blue-700); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(37,99,235,0.4); }
   .btn-primary:active:not(:disabled) { transform: translateY(0); }
-
-  .btn-primary:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-  }
+  .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+  .btn-primary svg { width: 15px; height: 15px; stroke: white; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
   .btn-sm {
-    padding: 7px 14px;
-    border-radius: 7px;
-    border: 1px solid var(--border);
-    background: var(--bg3);
-    color: var(--text2);
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s;
+    padding: 7px 13px; border-radius: 7px;
+    border: 1.5px solid var(--gray-200);
+    background: var(--white); color: var(--gray-600);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s;
+    display: inline-flex; align-items: center; gap: 5px;
   }
 
-  .btn-sm:hover { border-color: var(--accent); color: var(--accent3); }
+  .btn-sm svg { width: 12px; height: 12px; stroke: currentColor; fill: none; }
+  .btn-sm:hover { border-color: var(--blue-300); color: var(--blue-700); background: var(--blue-50); }
 
-  .btn-danger {
-    border-color: rgba(239,68,68,0.3);
-    color: var(--red);
-  }
+  .btn-danger  { border-color: #fecaca; color: var(--red); }
+  .btn-danger:hover  { background: var(--red-bg); border-color: var(--red); }
 
-  .btn-danger:hover { border-color: var(--red); background: rgba(239,68,68,0.1); }
+  .btn-success { border-color: var(--green-border); color: #16a34a; }
+  .btn-success:hover { background: var(--green-bg); }
 
-  .btn-success {
-    border-color: rgba(34,197,94,0.3);
-    color: var(--green);
-  }
+  /* Divider */
+  .divider { height: 1px; background: var(--gray-100); margin: 16px 0; }
 
-  .btn-success:hover { border-color: var(--green); background: rgba(34,197,94,0.1); }
+  /* Help text */
+  .help-text { font-size: 11.5px; color: var(--gray-400); margin-top: 5px; line-height: 1.5; }
 
   /* ── Progress ── */
   .progress-wrap {
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    height: 6px;
-    overflow: hidden;
-    margin: 10px 0;
+    background: var(--gray-100); border-radius: 999px;
+    height: 6px; overflow: hidden; margin: 10px 0;
   }
 
   .progress-bar {
-    height: 100%;
-    border-radius: 999px;
-    background: linear-gradient(90deg, var(--accent), var(--cyan));
-    transition: width 0.4s ease;
-    position: relative;
+    height: 100%; border-radius: 999px;
+    background: linear-gradient(90deg, var(--blue-600), var(--blue-400));
+    transition: width 0.4s ease; position: relative;
   }
 
   .progress-bar::after {
-    content: '';
-    position: absolute; right: 0; top: 0; bottom: 0;
-    width: 20px;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3));
+    content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 30px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4));
     animation: shimmer 1.2s ease infinite;
   }
 
-  @keyframes shimmer { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
+  @keyframes shimmer { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
 
   .progress-info {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 12px;
-    color: var(--text3);
-    font-family: 'JetBrains Mono', monospace;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11px; color: var(--gray-400); font-family: 'JetBrains Mono', monospace;
   }
 
   /* ── Log terminal ── */
   .log-terminal {
-    background: #080810;
-    border: 1px solid var(--border);
+    background: var(--blue-950);
+    border: 1px solid var(--gray-200);
     border-radius: var(--radius-sm);
-    padding: 14px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
-    max-height: 220px;
-    overflow-y: auto;
-    line-height: 1.7;
-    margin-top: 12px;
+    padding: 14px; font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px; max-height: 200px; overflow-y: auto;
+    line-height: 1.7; margin-top: 12px;
   }
 
-  .log-terminal::-webkit-scrollbar { width: 4px; }
-  .log-terminal::-webkit-scrollbar-track { background: transparent; }
-  .log-terminal::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .log-terminal::-webkit-scrollbar { width: 3px; }
+  .log-terminal::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
 
   .log-line { display: flex; gap: 8px; align-items: flex-start; }
-  .log-time { color: var(--text3); flex-shrink: 0; }
-  .log-line.info  .log-msg { color: var(--text2); }
-  .log-line.ok    .log-msg { color: var(--green); }
-  .log-line.warn  .log-msg { color: var(--yellow); }
-  .log-line.error .log-msg { color: var(--red); }
-
-  /* ── Meta card (video info) ── */
-  .meta-card {
-    display: flex;
-    gap: 14px;
-    align-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  .meta-thumb {
-    width: 120px;
-    height: 68px;
-    border-radius: 8px;
-    object-fit: cover;
-    background: var(--bg3);
-    flex-shrink: 0;
-    border: 1px solid var(--border);
-  }
-
-  .meta-thumb-placeholder {
-    width: 120px; height: 68px;
-    background: var(--bg3);
-    border: 1px dashed var(--border);
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--text3); font-size: 10px;
-    flex-shrink: 0;
-  }
-
-  .meta-info { flex: 1; min-width: 180px; }
-  .meta-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; line-height: 1.4; }
-  .meta-sub { font-size: 12px; color: var(--text2); }
-
-  /* ── Score display ── */
-  .score-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-top: 12px;
-  }
-
-  .score-number {
-    font-size: 32px;
-    font-weight: 700;
-    font-family: 'JetBrains Mono', monospace;
-    line-height: 1;
-  }
-
-  .score-label {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 1px;
-    padding: 4px 10px;
-    border-radius: 999px;
-    border: 1px solid currentColor;
-    opacity: 0.9;
-  }
-
-  .breakdown-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 8px;
-    margin-top: 14px;
-  }
-
-  .breakdown-item {
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px 12px;
-  }
-
-  .breakdown-label {
-    font-size: 10px;
-    color: var(--text3);
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    margin-bottom: 5px;
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  .mini-bar-wrap {
-    height: 4px;
-    background: var(--bg4);
-    border-radius: 999px;
-    overflow: hidden;
-  }
-
-  .mini-bar {
-    height: 100%;
-    border-radius: 999px;
-    background: linear-gradient(90deg, var(--accent), var(--cyan));
-  }
-
-  .breakdown-val {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text2);
-    margin-top: 5px;
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  /* ── Segment cards ── */
-  .segments-list { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
-
-  .seg-card {
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px 16px;
-    cursor: pointer;
-    transition: all 0.15s;
-    position: relative;
-    user-select: none;
-  }
-
-  .seg-card:hover { border-color: var(--border2); }
-
-  .seg-card.selected {
-    border-color: var(--accent);
-    background: rgba(108,99,255,0.06);
-    box-shadow: 0 0 0 2px rgba(108,99,255,0.15);
-  }
-
-  .seg-check {
-    position: absolute;
-    top: 12px; right: 14px;
-    width: 20px; height: 20px;
-    border-radius: 50%;
-    border: 2px solid var(--border2);
-    background: transparent;
-    display: flex; align-items: center; justify-content: center;
-    transition: all 0.15s;
-    flex-shrink: 0;
-  }
-
-  .seg-card.selected .seg-check {
-    background: var(--accent);
-    border-color: var(--accent);
-  }
-
-  .seg-check svg { display: none; width: 10px; height: 10px; }
-  .seg-card.selected .seg-check svg { display: block; }
-
-  .seg-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding-right: 30px;
-    flex-wrap: wrap;
-  }
-
-  .seg-index {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--text3);
-    font-family: 'JetBrains Mono', monospace;
-    background: var(--bg4);
-    padding: 2px 7px;
-    border-radius: 4px;
-  }
-
-  .seg-time {
-    font-size: 13px;
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--text);
-    font-weight: 500;
-  }
-
-  .seg-score-badge {
-    margin-left: auto;
-    font-size: 12px;
-    font-weight: 700;
-    font-family: 'JetBrains Mono', monospace;
-    padding: 2px 8px;
-    border-radius: 6px;
-    background: rgba(108,99,255,0.15);
-    color: var(--accent3);
-    margin-right: 30px;
-  }
-
-  .seg-meta {
-    display: flex;
-    gap: 6px;
-    margin-top: 8px;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-
-  .seg-tag {
-    font-size: 10px;
-    padding: 2px 7px;
-    border-radius: 4px;
-    background: var(--bg4);
-    color: var(--text3);
-    font-family: 'JetBrains Mono', monospace;
-    border: 1px solid var(--border);
-  }
-
-  .seg-method {
-    font-size: 10px;
-    color: var(--cyan);
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  .seg-preview {
-    font-size: 11.5px;
-    color: var(--text2);
-    margin-top: 6px;
-    line-height: 1.5;
-    font-style: italic;
-    padding-right: 24px;
-  }
-
-  /* ── Files list ── */
-  .file-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: 9px;
-    margin-bottom: 8px;
-    transition: border-color 0.15s;
-  }
-
-  .file-item:hover { border-color: var(--border2); }
-
-  .file-icon {
-    width: 36px; height: 36px;
-    background: rgba(108,99,255,0.12);
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .file-icon svg { width: 18px; height: 18px; stroke: var(--accent3); }
-
-  .file-info { flex: 1; min-width: 0; }
-  .file-name { font-size: 12.5px; font-weight: 500; truncate: true; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .file-size { font-size: 11px; color: var(--text3); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
-
-  .file-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .log-time { color: rgba(148,163,184,0.5); flex-shrink: 0; }
+  .log-line.info  .log-msg { color: rgba(148,163,184,0.8); }
+  .log-line.ok    .log-msg { color: #4ade80; }
+  .log-line.warn  .log-msg { color: #fbbf24; }
+  .log-line.error .log-msg { color: #f87171; }
 
   /* ── Status badge ── */
   .status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 11px;
-    font-family: 'JetBrains Mono', monospace;
-    padding: 3px 10px;
-    border-radius: 999px;
-    font-weight: 600;
-    letter-spacing: 0.3px;
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; font-family: 'JetBrains Mono', monospace;
+    padding: 4px 10px; border-radius: 999px; font-weight: 600;
   }
 
-  .status-badge.running  { background: rgba(245,158,11,0.12); color: var(--yellow); }
-  .status-badge.done     { background: rgba(34,197,94,0.12);  color: var(--green); }
-  .status-badge.error    { background: rgba(239,68,68,0.12);  color: var(--red); }
-  .status-badge.idle     { background: rgba(144,144,168,0.1); color: var(--text3); }
-  .status-badge.ready    { background: rgba(6,182,212,0.12);  color: var(--cyan); }
+  .status-badge.running  { background: var(--yellow-bg); color: var(--yellow); border: 1px solid #fde68a; }
+  .status-badge.done     { background: var(--green-bg); color: #16a34a; border: 1px solid var(--green-border); }
+  .status-badge.error    { background: var(--red-bg); color: var(--red); border: 1px solid #fecaca; }
+  .status-badge.idle     { background: var(--gray-100); color: var(--gray-500); border: 1px solid var(--gray-200); }
+  .status-badge.ready    { background: var(--blue-50); color: var(--blue-700); border: 1px solid var(--blue-200); }
 
   .pulse { animation: pulse 1.2s ease infinite; }
-  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-  .dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: currentColor;
-    flex-shrink: 0;
-  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
 
   /* ── Section transitions ── */
   .section { display: none; }
   .section.visible { display: block; animation: fadeUp 0.3s ease; }
 
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(8px); }
-    to   { opacity: 1; transform: translateY(0); }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── Meta card ── */
+  .meta-card { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+
+  .meta-thumb {
+    width: 120px; height: 68px; border-radius: 9px;
+    object-fit: cover; background: var(--gray-100); flex-shrink: 0;
+    border: 1px solid var(--gray-200);
   }
+
+  .meta-thumb-placeholder {
+    width: 120px; height: 68px; background: var(--gray-100);
+    border: 1.5px dashed var(--gray-300); border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--gray-400); font-size: 10px; flex-shrink: 0;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .meta-info { flex: 1; min-width: 180px; }
+  .meta-title { font-weight: 700; font-size: 14px; margin-bottom: 4px; line-height: 1.4; color: var(--gray-900); }
+  .meta-sub { font-size: 12px; color: var(--gray-500); }
+
+  /* ── Score ── */
+  .score-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+
+  .score-number {
+    font-size: 32px; font-weight: 800;
+    font-family: 'JetBrains Mono', monospace; line-height: 1;
+    color: var(--gray-900);
+  }
+
+  .score-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
+    padding: 4px 12px; border-radius: 999px;
+    border: 1.5px solid currentColor; opacity: 0.9;
+  }
+
+  .breakdown-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 8px; margin-top: 14px;
+  }
+
+  .breakdown-item {
+    background: var(--gray-50); border: 1px solid var(--gray-200);
+    border-radius: 9px; padding: 10px 12px;
+  }
+
+  .breakdown-label {
+    font-size: 10px; color: var(--gray-400);
+    text-transform: uppercase; letter-spacing: 0.8px;
+    margin-bottom: 5px; font-family: 'JetBrains Mono', monospace;
+  }
+
+  .mini-bar-wrap { height: 4px; background: var(--gray-200); border-radius: 999px; overflow: hidden; }
+  .mini-bar { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--blue-600), var(--blue-400)); }
+  .breakdown-val { font-size: 12px; font-weight: 700; color: var(--gray-700); margin-top: 5px; font-family: 'JetBrains Mono', monospace; }
+
+  /* ── Segments ── */
+  .segments-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+
+  .seg-card {
+    background: var(--gray-50); border: 1.5px solid var(--gray-200);
+    border-radius: 10px; padding: 14px 16px;
+    cursor: pointer; transition: all 0.15s;
+    position: relative; user-select: none;
+  }
+
+  .seg-card:hover { border-color: var(--blue-300); background: var(--blue-50); }
+
+  .seg-card.selected {
+    border-color: var(--blue-500); background: var(--blue-50);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+  }
+
+  .seg-check {
+    position: absolute; top: 12px; right: 14px;
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 2px solid var(--gray-300); background: var(--white);
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .seg-card.selected .seg-check { background: var(--blue-600); border-color: var(--blue-600); }
+  .seg-check svg { display: none; width: 10px; height: 10px; }
+  .seg-card.selected .seg-check svg { display: block; }
+
+  .seg-header { display: flex; align-items: center; gap: 8px; padding-right: 30px; flex-wrap: wrap; }
+
+  .seg-index {
+    font-size: 10px; font-weight: 700; color: var(--gray-400);
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--gray-200); padding: 2px 7px; border-radius: 4px;
+  }
+
+  .seg-time { font-size: 13px; font-family: 'JetBrains Mono', monospace; color: var(--gray-900); font-weight: 600; }
+
+  .seg-score-badge {
+    margin-left: auto; font-size: 11px; font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 2px 8px; border-radius: 6px;
+    background: var(--blue-100); color: var(--blue-700);
+    margin-right: 28px;
+  }
+
+  .seg-meta { display: flex; gap: 5px; margin-top: 7px; flex-wrap: wrap; align-items: center; }
+
+  .seg-tag {
+    font-size: 10px; padding: 2px 7px; border-radius: 4px;
+    background: var(--white); color: var(--gray-500);
+    font-family: 'JetBrains Mono', monospace;
+    border: 1px solid var(--gray-200);
+  }
+
+  .seg-method { font-size: 10px; color: var(--blue-500); font-family: 'JetBrains Mono', monospace; }
+
+  .seg-preview {
+    font-size: 11.5px; color: var(--gray-500); margin-top: 6px;
+    line-height: 1.5; font-style: italic; padding-right: 24px;
+  }
+
+  /* ── Files ── */
+  .file-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 14px; background: var(--gray-50);
+    border: 1.5px solid var(--gray-200); border-radius: 9px;
+    margin-bottom: 8px; transition: all 0.15s;
+  }
+
+  .file-item:hover { border-color: var(--blue-200); background: var(--blue-50); }
+
+  .file-icon {
+    width: 36px; height: 36px; background: var(--blue-100);
+    border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+
+  .file-icon svg { width: 18px; height: 18px; stroke: var(--blue-700); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  .file-info { flex: 1; min-width: 0; }
+  .file-name { font-size: 12.5px; font-weight: 600; color: var(--gray-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .file-size { font-size: 11px; color: var(--gray-400); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+  .file-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+  /* ── Select bar ── */
+  .select-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+  .select-count { font-size: 12px; color: var(--gray-500); font-family: 'JetBrains Mono', monospace; }
+
+  /* ── DL options ── */
+  .dl-options {
+    background: var(--gray-50); border: 1px solid var(--gray-200);
+    border-radius: 10px; padding: 16px; margin-top: 12px;
+  }
+
+  .dl-options-title {
+    font-size: 10px; color: var(--gray-400); text-transform: uppercase;
+    letter-spacing: 1px; font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 12px; font-weight: 700;
+  }
+
+  /* ── Result ── */
+  .result-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .result-count { font-size: 13px; color: #16a34a; font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+
+  /* ── Alert ── */
+  .alert { padding: 10px 14px; border-radius: 9px; font-size: 12.5px; line-height: 1.5; }
+  .alert-info { background: var(--blue-50); border: 1px solid var(--blue-200); color: var(--blue-700); }
+  .alert-warn { background: var(--yellow-bg); border: 1px solid #fde68a; color: #92400e; }
+  .alert-ok   { background: var(--green-bg); border: 1px solid var(--green-border); color: #166534; }
 
   /* ── Toast ── */
   #toast {
-    position: fixed;
-    bottom: 20px; left: 50%;
+    position: fixed; bottom: 20px; left: 50%;
     transform: translateX(-50%) translateY(80px);
-    background: var(--bg3);
-    border: 1px solid var(--border2);
-    border-radius: 10px;
-    padding: 12px 20px;
-    font-size: 13px;
-    color: var(--text);
-    z-index: 1000;
+    background: var(--gray-900); border-radius: 10px;
+    padding: 11px 20px; font-size: 13px; font-weight: 500;
+    color: white; z-index: 500;
     transition: transform 0.3s ease, opacity 0.3s ease;
-    opacity: 0;
-    white-space: nowrap;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    opacity: 0; white-space: nowrap;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
   }
 
   #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 
-  /* ── Nav tabs ── */
-  .nav-tabs {
-    display: flex;
-    gap: 2px;
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 4px;
-    margin-bottom: 20px;
-  }
+  /* ── Spinner ── */
+  .spinner { width: 15px; height: 15px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
-  .nav-tab {
-    flex: 1;
-    padding: 9px 12px;
-    border: none;
-    border-radius: 8px;
-    background: transparent;
-    color: var(--text3);
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s;
-    text-align: center;
-    letter-spacing: 0.2px;
-  }
-
-  .nav-tab.active {
-    background: var(--bg4);
-    color: var(--text);
-    border: 1px solid var(--border);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-  }
-
-  /* ── Divider ── */
-  .divider {
-    height: 1px;
-    background: var(--border);
-    margin: 18px 0;
-  }
-
-  /* ── Help text ── */
-  .help-text {
-    font-size: 11.5px;
-    color: var(--text3);
-    margin-top: 5px;
-    line-height: 1.5;
-  }
-
-  /* ── Alert ── */
-  .alert {
-    padding: 12px 14px;
-    border-radius: 9px;
-    font-size: 13px;
-    line-height: 1.5;
-  }
-
-  .alert-warn { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2); color: var(--yellow); }
-  .alert-info { background: rgba(6,182,212,0.08);  border: 1px solid rgba(6,182,212,0.2);  color: var(--cyan); }
-  .alert-ok   { background: rgba(34,197,94,0.08);  border: 1px solid rgba(34,197,94,0.2);  color: var(--green); }
-
-  /* ── Select all bar ── */
-  .select-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .select-count {
-    font-size: 12px;
-    color: var(--text2);
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  /* ── Download options ── */
-  .dl-options {
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 16px;
-    margin-top: 12px;
-  }
-
-  .dl-options-title {
-    font-size: 11px;
-    color: var(--text3);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-family: 'JetBrains Mono', monospace;
-    margin-bottom: 12px;
-    font-weight: 600;
-  }
-
-  /* ── Result files ── */
-  .result-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 14px;
-  }
-
-  .result-count {
-    font-size: 13px;
-    color: var(--green);
-    font-family: 'JetBrains Mono', monospace;
-    font-weight: 600;
-  }
-
-  /* Mobile tweaks */
+  /* Mobile */
   @media (max-width: 460px) {
     .meta-card { flex-direction: column; }
     .meta-thumb, .meta-thumb-placeholder { width: 100%; height: 160px; }
-    header { padding: 24px 0 20px; }
-    .btn-primary { font-size: 14px; }
+    .container { padding-top: 16px; }
   }
 </style>
 </head>
 <body>
 
-<div class="container">
-  <!-- Header -->
-  <header>
-    <div class="logo-mark">
-      <div class="logo-icon">
-        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path d="M18 3v3H6V3H4v18h2v-3h12v3h2V3h-2zm0 13H6v-8h12v8z"/>
-        </svg>
-      </div>
-      <h1>Clipper Tool</h1>
-    </div>
-    <div class="tagline">AI-powered clip extraction -- no full download needed</div>
-  </header>
+<!-- ══════════════════════════════════════════
+     TOPBAR
+══════════════════════════════════════════ -->
+<div class="topbar">
+  <!-- Hamburger -->
+  <button class="hamburger" onclick="openDrawer()" aria-label="Menu">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round">
+      <line x1="3" y1="6" x2="21" y2="6"/>
+      <line x1="3" y1="12" x2="21" y2="12"/>
+      <line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  </button>
 
-  <!-- Nav -->
-  <div class="nav-tabs">
-    <button class="nav-tab active" onclick="switchTab('clip')">Clip Video</button>
-    <button class="nav-tab" onclick="switchTab('files')">My Files</button>
+  <!-- Logo -->
+  <a href="/" class="topbar-logo">
+    <div class="topbar-logo-icon">
+      <svg viewBox="0 0 24 24"><path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+    </div>
+    <span class="topbar-logo-text">Clipper Tool</span>
+    <span class="topbar-logo-badge">v2.0</span>
+  </a>
+
+  <div class="topbar-spacer"></div>
+
+  <!-- Center tabs -->
+  <div class="topbar-tabs">
+    <button class="topbar-tab active" id="tab-btn-clip" onclick="switchTab('clip')">
+      <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+      Clip
+    </button>
+    <button class="topbar-tab" id="tab-btn-files" onclick="switchTab('files')">
+      <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+      Files
+    </button>
   </div>
 
-  <!-- CLIP TAB -->
-  <div id="tab-clip">
+  <div class="topbar-spacer"></div>
+
+  <!-- Right actions -->
+  <div class="topbar-actions">
+    <!-- Profile button -->
+    <a href="/profile" class="profile-btn" id="topbar-profile">
+      <div class="profile-avatar" id="topbar-avatar" style="background:#1d4ed8">U</div>
+      <span class="profile-name" id="topbar-name">User</span>
+    </a>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     DRAWER (Hamburger Menu)
+══════════════════════════════════════════ -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()">
+  <div class="drawer" onclick="event.stopPropagation()">
+
+    <div class="drawer-header">
+      <div class="drawer-logo">
+        <div class="drawer-logo-icon">
+          <svg viewBox="0 0 24 24"><path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+        </div>
+        <span class="drawer-logo-text">Clipper Tool</span>
+      </div>
+      <button class="drawer-close" onclick="closeDrawer()">
+        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- User info -->
+    <a href="/profile" class="drawer-user" onclick="closeDrawer()">
+      <div class="drawer-user-avatar" id="drawer-avatar" style="background:#1d4ed8">U</div>
+      <div>
+        <div class="drawer-user-name" id="drawer-name">User</div>
+        <div class="drawer-user-role" id="drawer-role">user</div>
+      </div>
+    </a>
+
+    <!-- Nav -->
+    <div class="drawer-section">Menu</div>
+
+    <a class="drawer-item active" id="di-clip" onclick="switchTab('clip');closeDrawer()" href="#">
+      <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+      Clip Video
+    </a>
+
+    <a class="drawer-item" id="di-files" onclick="switchTab('files');closeDrawer()" href="#">
+      <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+      File Saya
+    </a>
+
+    <div class="drawer-divider"></div>
+    <div class="drawer-section">Akun</div>
+
+    <a class="drawer-item" href="/profile" onclick="closeDrawer()">
+      <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Profil Saya
+    </a>
+
+    <div id="drawer-admin-link" style="display:none">
+      <a class="drawer-item" href="/admin" onclick="closeDrawer()">
+        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Admin Panel
+      </a>
+    </div>
+
+    <div class="drawer-footer">
+      <a href="/logout" class="drawer-logout">
+        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Keluar dari Akun
+      </a>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MAIN CONTENT
+══════════════════════════════════════════ -->
+<div class="container">
+
+  <!-- ── CLIP TAB ── -->
+  <div class="tab-panel active" id="tab-clip">
+
+    <div class="page-head">
+      <div class="page-title">Clip Video Otomatis</div>
+      <div class="page-sub">// paste URL, tool akan temukan momen terbaik</div>
+    </div>
 
     <!-- Input Form -->
     <div class="card" id="form-card">
-      <div class="card-title">Video Source</div>
+      <div class="card-title">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Sumber Video
+      </div>
+
+      <!-- Mode selector -->
+      <div class="input-group">
+        <label>Mode Analisis</label>
+        <div class="toggle-group" id="mode-toggle">
+          <button class="toggle-btn active" onclick="setMode(this,'podcast')">
+            Podcast
+          </button>
+          <button class="toggle-btn" onclick="setMode(this,'gaming')">
+            Gaming
+          </button>
+        </div>
+        <div class="help-text" id="mode-hint">Hook detection + FYP scoring untuk konten berbasis percakapan</div>
+      </div>
 
       <div class="input-group">
-        <label>Video URL</label>
-        <input type="text" id="url-input" placeholder="https://youtube.com/watch?v=... or TikTok, IG, etc" autocomplete="off" autocorrect="off" spellcheck="false">
-        <div class="help-text">Supports YouTube, TikTok, Instagram, Twitter/X, Facebook, and more</div>
+        <label>URL Video</label>
+        <input type="text" id="url-input" placeholder="https://youtube.com/watch?v=... atau TikTok, IG, dll" autocomplete="off" autocorrect="off" spellcheck="false">
+        <div class="help-text">Mendukung YouTube, TikTok, Instagram, Twitter/X, Facebook, dan lainnya</div>
       </div>
 
       <div class="divider"></div>
 
       <div class="grid-2">
         <div class="input-group">
-          <label>Clip Duration</label>
+          <label>Durasi Clip</label>
           <select id="clip-dur">
-            <option value="30">30s -- TikTok / Reels</option>
-            <option value="60">60s -- YouTube Shorts</option>
-            <option value="90">90s -- Story format</option>
-            <option value="120">120s -- 2 minutes</option>
+            <option value="30">30s — TikTok / Reels</option>
+            <option value="60">60s — YouTube Shorts</option>
+            <option value="90">90s — Format Story</option>
+            <option value="120">120s — 2 Menit</option>
           </select>
         </div>
         <div class="input-group">
-          <label>Number of Clips</label>
+          <label>Jumlah Clip</label>
           <select id="num-clips">
+            <option value="0" selected>Auto — semua highlight</option>
             <option value="1">1 clip</option>
-            <option value="2">2 clips</option>
-            <option value="3" selected>3 clips</option>
-            <option value="5">5 clips</option>
-            <option value="8">8 clips</option>
-            <option value="11">11 clips (max)</option>
+            <option value="2">2 clip</option>
+            <option value="3">3 clip</option>
+            <option value="5">5 clip</option>
+            <option value="8">8 clip</option>
+            <option value="15">15 clip</option>
+            <option value="20">20 clip</option>
           </select>
         </div>
       </div>
 
       <button class="btn-primary" id="analyze-btn" onclick="startAnalysis()">
-        Analyze Video
+        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Analisis Video
       </button>
     </div>
 
-    <!-- Progress section -->
+    <!-- Progress -->
     <div class="card section" id="progress-section">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <div class="card-title" style="margin-bottom:0">Processing</div>
-        <div id="status-badge" class="status-badge running">
-          <div class="dot pulse"></div>
-          <span id="status-text">Running</span>
-        </div>
+
+      <!-- Warning banner: jangan tinggalkan halaman -->
+      <div id="stay-warning" style="
+        display:flex; align-items:center; gap:10px;
+        background:var(--yellow-bg); border:1.5px solid var(--yellow);
+        border-radius:var(--radius-sm); padding:10px 14px; margin-bottom:14px;
+        font-size:12px; font-weight:600; color:#92400e; line-height:1.4;">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--yellow)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+          <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        Jangan tutup atau pindah halaman — proses akan terhenti jika Anda keluar.
       </div>
 
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="card-title" style="margin-bottom:0">
+          <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Memproses
+        </div>
+        <div id="status-badge" class="status-badge running">
+          <div class="dot pulse"></div>
+          <span id="status-text">Berjalan</span>
+        </div>
+      </div>
       <div class="progress-info">
-        <span id="stage-text" style="color:var(--text2)">Initializing...</span>
+        <span id="stage-text" style="color:var(--gray-500)">Menginisialisasi...</span>
         <span id="pct-text">0%</span>
       </div>
       <div class="progress-wrap">
         <div class="progress-bar" id="progress-bar" style="width:0%"></div>
       </div>
-
       <div class="log-terminal" id="log-output">
-        <div class="log-line info">
-          <span class="log-time">--:--:--</span>
-          <span class="log-msg">Ready</span>
-        </div>
+        <div class="log-line info"><span class="log-time">--:--:--</span><span class="log-msg">Siap</span></div>
       </div>
     </div>
 
     <!-- Video meta -->
     <div class="card section" id="meta-section">
-      <div class="card-title">Video Info</div>
+      <div class="card-title">
+        <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        Info Video
+      </div>
       <div class="meta-card">
-        <div id="thumb-wrap">
-          <div class="meta-thumb-placeholder">No thumbnail</div>
-        </div>
+        <div id="thumb-wrap"><div class="meta-thumb-placeholder">no thumb</div></div>
         <div class="meta-info">
           <div class="meta-title" id="meta-title">--</div>
           <div class="meta-sub" id="meta-uploader">--</div>
-          <div class="meta-sub" id="meta-duration" style="margin-top:2px">Duration: --</div>
+          <div class="meta-sub" id="meta-duration" style="margin-top:2px">Durasi: --</div>
         </div>
       </div>
       <div class="divider"></div>
       <div class="score-row">
         <div class="score-number" id="score-num">--</div>
-        <div>/100</div>
+        <div style="color:var(--gray-400);font-weight:600">/100</div>
         <div class="score-label" id="score-label">--</div>
       </div>
       <div class="breakdown-grid" id="breakdown-grid"></div>
@@ -876,79 +960,96 @@
 
     <!-- Segments -->
     <div class="card section" id="segments-section">
-      <div class="card-title">Detected Segments</div>
-      <div class="alert alert-info" style="margin-bottom:14px;font-size:12px">
-        Select which segments to download. Click to toggle selection.
+      <div class="card-title">
+        <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        Segmen Terdeteksi
       </div>
-
+      <div class="alert alert-info" style="margin-bottom:12px;font-size:12px">
+        Pilih segmen yang ingin diunduh. Klik untuk memilih atau batalkan pilihan.
+      </div>
       <div class="select-bar">
-        <span class="select-count" id="select-count">0 selected</span>
+        <span class="select-count" id="select-count">0 dipilih</span>
         <div style="display:flex;gap:6px">
-          <button class="btn-sm" onclick="selectAll()">Select All</button>
-          <button class="btn-sm" onclick="selectNone()">Clear</button>
+          <button class="btn-sm" onclick="selectAll()">
+            <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Pilih Semua
+          </button>
+          <button class="btn-sm" onclick="selectNone()">
+            <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Hapus Pilihan
+          </button>
         </div>
       </div>
 
       <div class="segments-list" id="segments-list"></div>
 
       <div class="dl-options">
-        <div class="dl-options-title">Download Settings</div>
+        <div class="dl-options-title">Pengaturan Unduhan</div>
         <div class="grid-2">
           <div class="input-group" style="margin-bottom:0">
-            <label>Quality</label>
+            <label>Kualitas</label>
             <select id="dl-quality">
-              <option value="720">720p -- Recommended</option>
-              <option value="1080">1080p -- Best quality</option>
-              <option value="480">480p -- Save data</option>
+              <option value="720">720p — Rekomendasi</option>
+              <option value="1080">1080p — Terbaik</option>
+              <option value="480">480p — Hemat Data</option>
             </select>
           </div>
           <div class="input-group" style="margin-bottom:0">
-            <label>Output Format</label>
+            <label>Format Output</label>
             <div class="toggle-group">
               <button class="toggle-btn active" onclick="setAspect(this,'916')">9:16 Portrait</button>
               <button class="toggle-btn" onclick="setAspect(this,'169')">16:9 Original</button>
             </div>
           </div>
         </div>
-        <div style="margin-top:12px">
-          <label>Subtitle</label>
-          <div class="toggle-group">
-            <button class="toggle-btn active" id="sub-on"  onclick="setBurnSubs(this,true)">Burn Subtitle</button>
-            <button class="toggle-btn"        id="sub-off" onclick="setBurnSubs(this,false)">No Subtitle</button>
-          </div>
-          <div class="help-text" style="margin-top:6px">Auto-generated via Whisper AI -- Bahasa Indonesia / English</div>
-        </div>
       </div>
 
       <button class="btn-primary" id="download-btn" onclick="startDownload()" style="margin-top:14px" disabled>
-        Download Selected Clips
+        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Unduh Clip Terpilih
       </button>
     </div>
 
     <!-- Results -->
     <div class="card section" id="result-section">
       <div class="result-header">
-        <div class="card-title" style="margin-bottom:0">Clips Ready</div>
+        <div class="card-title" style="margin-bottom:0">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          Clip Siap
+        </div>
         <div class="result-count" id="result-count"></div>
       </div>
       <div id="result-files"></div>
       <div style="margin-top:14px">
-        <button class="btn-sm" onclick="resetAll()" style="width:100%;padding:10px">Clip Another Video</button>
+        <button class="btn-sm" onclick="resetAll()" style="width:100%;padding:10px;justify-content:center">
+          <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+          Clip Video Lain
+        </button>
       </div>
     </div>
 
   </div><!-- /tab-clip -->
 
-  <!-- FILES TAB -->
-  <div id="tab-files" style="display:none">
+  <!-- ── FILES TAB ── -->
+  <div class="tab-panel" id="tab-files">
+    <div class="page-head">
+      <div class="page-title">File Saya</div>
+      <div class="page-sub">// semua clip yang sudah dibuat</div>
+    </div>
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <div class="card-title" style="margin-bottom:0">Saved Clips</div>
-        <button class="btn-sm" onclick="loadFiles()">Refresh</button>
+        <div class="card-title" style="margin-bottom:0">
+          <svg viewBox="0 0 24 24"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+          Clip Tersimpan
+        </div>
+        <button class="btn-sm" onclick="loadFiles()">
+          <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+          Refresh
+        </button>
       </div>
       <div id="files-list">
-        <div style="color:var(--text3);font-size:13px;text-align:center;padding:24px 0">
-          Loading files...
+        <div style="color:var(--gray-400);font-size:13px;text-align:center;padding:32px 0;font-family:'JetBrains Mono',monospace">
+          Memuat file...
         </div>
       </div>
     </div>
@@ -960,38 +1061,111 @@
 
 <script>
 // ── State ─────────────────────────────────────────────────────────────────────
-let currentJobId = null;
+let currentJobId     = null;
 let selectedSegments = new Set();
 let currentSegments  = [];
 let currentAspect    = '916';
-let currentBurnSubs  = true;
-let currentUrl       = '';
-let currentClipDur   = 30;
+let currentMode      = 'podcast';
 let sseSource        = null;
+let isProcessing     = false;  // flag: proses sedang berjalan
+
+// ── Cegah user keluar saat proses berjalan ────────────────────────────────────
+window.addEventListener('beforeunload', (e) => {
+  if (isProcessing) {
+    e.preventDefault();
+    e.returnValue = 'Proses sedang berjalan! Menutup halaman akan menghentikan proses. Yakin ingin keluar?';
+    return e.returnValue;
+  }
+});
+
+// ── Mode selector ─────────────────────────────────────────────────────────────
+const MODE_HINTS = {
+  podcast: 'Hook detection + FYP scoring untuk konten berbasis percakapan',
+  gaming:  'Audio spike detection + gaming keyword scoring untuk highlight gaming',
+};
+
+function setMode(btn, mode) {
+  currentMode = mode;
+  btn.closest('.toggle-group').querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('mode-hint').textContent = MODE_HINTS[mode] || '';
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const r = await fetch('/admin/api/me');
+    if (r.ok) {
+      const d = await r.json();
+      if (d.username) {
+        const name   = d.display_name || d.username;
+        const initia = name[0].toUpperCase();
+        const color  = d.avatar_color || '#1d4ed8';
+
+        // Topbar profile
+        document.getElementById('topbar-avatar').textContent  = initia;
+        document.getElementById('topbar-avatar').style.background = color;
+        document.getElementById('topbar-name').textContent    = name;
+
+        // Drawer
+        document.getElementById('drawer-avatar').textContent  = initia;
+        document.getElementById('drawer-avatar').style.background = color;
+        document.getElementById('drawer-name').textContent    = name;
+        document.getElementById('drawer-role').textContent    = d.role === 'admin' ? 'Administrator' : 'User';
+
+        // Show admin link in drawer if admin
+        if (d.role === 'admin') {
+          document.getElementById('drawer-admin-link').style.display = 'block';
+        }
+      }
+    }
+  } catch {}
+});
+
+// ── Drawer ────────────────────────────────────────────────────────────────────
+function openDrawer() {
+  document.getElementById('drawer-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDrawer() {
+  document.getElementById('drawer-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// Close drawer on Escape
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
 
 // ── Tab switch ────────────────────────────────────────────────────────────────
 function switchTab(tab) {
-  document.querySelectorAll('.nav-tab').forEach((b,i) => {
-    b.classList.toggle('active', (tab==='clip'&&i===0)||(tab==='files'&&i===1));
-  });
-  document.getElementById('tab-clip').style.display   = tab==='clip'  ? '' : 'none';
-  document.getElementById('tab-files').style.display  = tab==='files' ? '' : 'none';
-  if (tab==='files') loadFiles();
+  // Topbar tabs
+  document.getElementById('tab-btn-clip').classList.toggle('active',  tab === 'clip');
+  document.getElementById('tab-btn-files').classList.toggle('active', tab === 'files');
+
+  // Panels
+  document.getElementById('tab-clip').classList.toggle('active',  tab === 'clip');
+  document.getElementById('tab-files').classList.toggle('active', tab === 'files');
+
+  // Drawer items
+  document.getElementById('di-clip').classList.toggle('active',  tab === 'clip');
+  document.getElementById('di-files').classList.toggle('active', tab === 'files');
+
+  if (tab === 'files') loadFiles();
 }
 
 // ── Sections ──────────────────────────────────────────────────────────────────
-function show(id)  { document.getElementById(id).classList.add('visible'); }
-function hide(id)  { document.getElementById(id).classList.remove('visible'); }
+function show(id) { document.getElementById(id).classList.add('visible'); }
+function hide(id) { document.getElementById(id).classList.remove('visible'); }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
-function toast(msg, dur=2800) {
+function toast(msg, dur = 2800) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), dur);
 }
 
-// ── Format helpers ────────────────────────────────────────────────────────────
+// ── Format helpers ─────────────────────────────────────────────────────────────
 function fmtTime(sec) {
   const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = Math.floor(sec%60);
   return h ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${m}:${String(s).padStart(2,'0')}`;
@@ -1002,404 +1176,451 @@ function fmtSize(bytes) {
   return (bytes/1024).toFixed(0)+' KB';
 }
 function fmtDate(ts) {
-  return new Date(ts*1000).toLocaleDateString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  return new Date(ts*1000).toLocaleDateString('id-ID',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
 }
-function timeStr() {
-  return new Date().toTimeString().slice(0,8);
-}
+function timeStr() { return new Date().toTimeString().slice(0,8); }
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// ── Log terminal ──────────────────────────────────────────────────────────────
-function appendLog(msg, level='info') {
-  const el  = document.getElementById('log-output');
-  const div = document.createElement('div');
-  div.className = `log-line ${level}`;
-  div.innerHTML = `<span class="log-time">${timeStr()}</span><span class="log-msg">${escHtml(msg)}</span>`;
-  el.appendChild(div);
-  el.scrollTop = el.scrollHeight;
-}
-
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-// ── Progress ──────────────────────────────────────────────────────────────────
+// ── Progress UI ───────────────────────────────────────────────────────────────
 function setProgress(pct, stage) {
   document.getElementById('progress-bar').style.width = pct + '%';
-  document.getElementById('pct-text').textContent = Math.round(pct) + '%';
-  const stageMap = {
-    metadata:'Fetching metadata', transcript:'Analyzing transcript',
-    audio_probe:'Probing audio', selecting:'Selecting segments',
-    downloading:'Downloading segment', processing:'Processing clips',
-    converting:'Converting video',
-  };
-  if (stage) document.getElementById('stage-text').textContent = stageMap[stage] || stage;
+  document.getElementById('pct-text').textContent     = Math.round(pct) + '%';
+  if (stage) document.getElementById('stage-text').textContent = stage.replace(/_/g,' ');
 }
 
 function setStatusBadge(status) {
-  const b = document.getElementById('status-badge');
-  const t = document.getElementById('status-text');
-  b.className = 'status-badge';
-  if (status==='running'||status==='downloading') {
-    b.classList.add('running');
-    t.textContent = status==='downloading' ? 'Downloading' : 'Running';
-    b.querySelector('.dot').classList.add('pulse');
-  } else if (status==='done') {
-    b.classList.add('done'); t.textContent = 'Done';
-    b.querySelector('.dot').classList.remove('pulse');
-  } else if (status==='error') {
-    b.classList.add('error'); t.textContent = 'Error';
-    b.querySelector('.dot').classList.remove('pulse');
-  } else if (status==='segments_ready') {
-    b.classList.add('ready'); t.textContent = 'Ready';
-    b.querySelector('.dot').classList.remove('pulse');
-  }
+  const el   = document.getElementById('status-badge');
+  const map  = {
+    running: ['running','Berjalan'], analyzing: ['running','Menganalisis'],
+    done:    ['done','Selesai'], error: ['error','Error'],
+    downloading: ['running','Mengunduh'], segments_ready: ['ready','Siap'],
+    queued:  ['idle','Antri'],
+  };
+  const [cls, label] = map[status] || ['idle', status];
+  el.className       = `status-badge ${cls}`;
+  const dotPulse     = cls === 'running' ? 'pulse' : '';
+  el.innerHTML       = `<div class="dot ${dotPulse}"></div><span id="status-text">${label}</span>`;
+}
+
+// ── Append log ────────────────────────────────────────────────────────────────
+function appendLog(msg, level = 'info') {
+  const box  = document.getElementById('log-output');
+  const line = document.createElement('div');
+  line.className = `log-line ${level}`;
+  line.innerHTML = `<span class="log-time">${timeStr()}</span><span class="log-msg">${escHtml(msg)}</span>`;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
 }
 
 // ── Start Analysis ────────────────────────────────────────────────────────────
 async function startAnalysis() {
-  const url = document.getElementById('url-input').value.trim();
-  if (!url) { toast('Please enter a video URL'); return; }
+  const url      = document.getElementById('url-input').value.trim();
+  const clip_dur = parseInt(document.getElementById('clip-dur').value);
+  const num_clips= parseInt(document.getElementById('num-clips').value);
 
-  currentUrl     = url;
-  currentClipDur = parseInt(document.getElementById('clip-dur').value);
-  const numClips = parseInt(document.getElementById('num-clips').value);
+  if (!url) { toast('Masukkan URL video terlebih dahulu'); return; }
 
   document.getElementById('analyze-btn').disabled = true;
-  document.getElementById('log-output').innerHTML = '';
-  selectedSegments.clear();
-  currentSegments = [];
+  document.getElementById('analyze-btn').innerHTML = '<span class="spinner"></span> Menganalisis...';
+  document.getElementById('log-output').innerHTML  = '';
 
-  hide('meta-section');
-  hide('segments-section');
-  hide('result-section');
+  ['meta-section','segments-section','result-section'].forEach(hide);
+  setProgress(0, 'queued');
+  setStatusBadge('queued');
   show('progress-section');
-
-  setProgress(0, '');
-  appendLog('Starting analysis...', 'info');
+  appendLog('Memulai analisis...', 'info');
+  isProcessing = true;
 
   try {
     const res = await fetch('/api/analyze', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({url, clip_dur: currentClipDur, num_clips: numClips})
+      body: JSON.stringify({url, clip_dur, num_clips, mode: currentMode})
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
     currentJobId = data.job_id;
-    startSSE(currentJobId);
+    selectedSegments.clear();
+    startSSE(data.job_id);
   } catch(e) {
-    appendLog('Error: '+e.message, 'error');
-    document.getElementById('analyze-btn').disabled = false;
-    toast('Error: '+e.message);
+    appendLog('Error: ' + e.message, 'error');
+    setStatusBadge('error');
+    resetAnalyzeBtn();
+    toast('Error: ' + e.message);
   }
 }
 
-// ── SSE stream ────────────────────────────────────────────────────────────────
+function resetAnalyzeBtn() {
+  const btn = document.getElementById('analyze-btn');
+  btn.disabled = false;
+  btn.innerHTML = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Analisis Video`;
+}
+
+// ── SSE (Analysis only) ───────────────────────────────────────────────────────
 function startSSE(jid) {
   if (sseSource) { sseSource.close(); sseSource = null; }
   sseSource = new EventSource(`/api/stream/${jid}`);
-
   sseSource.onmessage = function(e) {
     const d = JSON.parse(e.data);
-    if (d.error) { appendLog(d.error, 'error'); return; }
-
     setProgress(d.progress || 0, d.stage);
     setStatusBadge(d.status);
-
     (d.new_logs || []).forEach(l => appendLog(l.msg, l.level));
-
     if (d.meta) renderMeta(d.meta);
-
-    if (d.status === 'segments_ready' && d.segments) {
+    if (d.segments) {
       currentSegments = d.segments;
       renderSegments(d.segments);
       show('segments-section');
-      sseSource.close();
     }
-
+    if (d.status === 'segments_ready' || d.analysis_complete) {
+      resetAnalyzeBtn();
+      isProcessing = false;
+      document.getElementById('stay-warning').style.display = 'none';
+      // Jangan tutup SSE — server menunggu download dimulai
+    }
     if (d.status === 'done' && d.result) {
-      renderResult(d.result);
-      show('result-section');
-      sseSource.close();
-      document.getElementById('analyze-btn').disabled = false;
+      renderResult(d.result); show('result-section');
+      resetDownloadBtn();
+      isProcessing = false;
+      document.getElementById('stay-warning').style.display = 'none';
+      if (sseSource) { sseSource.close(); sseSource = null; }
+      toast('Clip berhasil dibuat!');
     }
-
     if (d.status === 'error') {
-      appendLog(d.error || 'Unknown error', 'error');
-      toast('Error: '+(d.error||'Unknown error'));
-      document.getElementById('analyze-btn').disabled = false;
-      sseSource.close();
+      appendLog(d.error || 'Terjadi error', 'error');
+      resetDownloadBtn(); resetAnalyzeBtn();
+      isProcessing = false;
+      document.getElementById('stay-warning').style.display = 'none';
+      if (sseSource) { sseSource.close(); sseSource = null; }
+      toast('Error: ' + (d.error || 'Unknown'));
     }
   };
-
-  sseSource.onerror = function() {
-    // Fallback to polling
-    sseSource.close();
-    pollStatus(jid);
+  sseSource.onerror = () => {
+    // SSE tutup (normal setelah segments_ready timeout) — jangan restart,
+    // cukup poll sekali untuk ambil segments jika belum muncul
+    if (sseSource) { sseSource.close(); sseSource = null; }
+    if (currentSegments.length === 0) {
+      pollStatus(jid);
+    }
   };
+}
+
+// ── Render Meta ────────────────────────────────────────────────────────────────
+function renderMeta(meta) {
+  show('meta-section');
+  document.getElementById('meta-title').textContent    = meta.title    || '–';
+  document.getElementById('meta-uploader').textContent = meta.uploader || '–';
+  const dur = meta.duration || 0;
+  const h = Math.floor(dur/3600), m = Math.floor((dur%3600)/60), s = Math.floor(dur%60);
+  document.getElementById('meta-duration').textContent =
+    'Durasi: ' + (h ? `${h}j ${m}m ${s}d` : `${m}m ${s}d`);
+
+  // Thumbnail
+  const tw = document.getElementById('thumb-wrap');
+  if (meta.thumbnail) {
+    tw.innerHTML = `<img src="${escHtml(meta.thumbnail)}" class="meta-thumb" onerror="this.style.display='none'">`;
+  }
+
+  // Score
+  const sc = meta.score;
+  if (sc) {
+    document.getElementById('score-num').textContent   = sc.total ?? '–';
+    const lbl = document.getElementById('score-label');
+    lbl.textContent  = sc.label || '–';
+    lbl.style.color  = sc.color || 'var(--gray-500)';
+
+    // Breakdown
+    const grid = document.getElementById('breakdown-grid');
+    grid.innerHTML = '';
+    const bd = sc.breakdown || {};
+    Object.entries(bd).forEach(([k, v]) => {
+      grid.innerHTML += `
+        <div class="breakdown-item">
+          <div class="breakdown-label">${k.replace(/_/g,' ')}</div>
+          <div class="mini-bar-wrap"><div class="mini-bar" style="width:${v}%"></div></div>
+          <div class="breakdown-val">${v}</div>
+        </div>`;
+    });
+  }
+}
+
+// ── Render Segments ────────────────────────────────────────────────────────────
+function renderSegments(segs) {
+  const list = document.getElementById('segments-list');
+  list.innerHTML = '';
+  segs.forEach((seg, i) => {
+    const card = document.createElement('div');
+    card.className = 'seg-card';
+    card.id = `seg-${i}`;
+    const tags = (seg.matched || []).map(w => `<span class="seg-tag">${escHtml(w)}</span>`).join('');
+    card.innerHTML = `
+      <div class="seg-check">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </div>
+      <div class="seg-header">
+        <span class="seg-index">#${i+1}</span>
+        <span class="seg-time">${fmtTime(seg.start)} → ${fmtTime(seg.end)}</span>
+        <span class="seg-score-badge">${seg.final_score ?? seg.score ?? 0}</span>
+      </div>
+      <div class="seg-meta">
+        ${tags}
+        <span class="seg-method">${seg.method || ''}</span>
+      </div>
+      ${seg.preview ? `<div class="seg-preview">${escHtml(seg.preview)}</div>` : ''}
+    `;
+    card.addEventListener('click', () => toggleSegment(i, card));
+    list.appendChild(card);
+  });
+  updateSelectCount();
+}
+
+function toggleSegment(i, card) {
+  if (selectedSegments.has(i)) {
+    selectedSegments.delete(i);
+    card.classList.remove('selected');
+  } else {
+    selectedSegments.add(i);
+    card.classList.add('selected');
+  }
+  updateSelectCount();
+}
+
+function updateSelectCount() {
+  const n = selectedSegments.size;
+  document.getElementById('select-count').textContent = `${n} dipilih`;
+  // Aktifkan tombol download jika ada yang dipilih
+  document.getElementById('download-btn').disabled = n === 0;
+}
+
+function selectAll() {
+  currentSegments.forEach((_, i) => {
+    selectedSegments.add(i);
+    const card = document.getElementById(`seg-${i}`);
+    if (card) card.classList.add('selected');
+  });
+  updateSelectCount();
+}
+
+function selectNone() {
+  selectedSegments.clear();
+  document.querySelectorAll('.seg-card').forEach(c => c.classList.remove('selected'));
+  updateSelectCount();
+}
+
+function setAspect(btn, aspect) {
+  currentAspect = aspect;
+  btn.closest('.toggle-group').querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
 }
 
 async function pollStatus(jid) {
   try {
     const res = await fetch(`/api/status/${jid}`);
     const d   = await res.json();
-
-    setProgress(d.progress||0, d.stage);
+    setProgress(d.progress || 0, d.stage);
     setStatusBadge(d.status);
-    (d.logs||[]).slice(-5).forEach(l => appendLog(l.msg, l.level));
-
+    (d.logs || []).slice(-5).forEach(l => appendLog(l.msg, l.level));
     if (d.meta) renderMeta(d.meta);
-
-    if (d.status==='segments_ready' && d.segments) {
-      currentSegments = d.segments;
-      renderSegments(d.segments);
-      show('segments-section');
-      return;
-    }
-    if (d.status==='done' && d.result) {
-      renderResult(d.result);
-      show('result-section');
-      document.getElementById('analyze-btn').disabled = false;
-      return;
-    }
-    if (d.status==='error') {
-      appendLog(d.error||'Error', 'error');
-      document.getElementById('analyze-btn').disabled = false;
-      return;
-    }
+    if (d.segments) { currentSegments = d.segments; renderSegments(d.segments); show('segments-section'); }
+    if (d.status === 'segments_ready') { resetAnalyzeBtn(); return; }
+    if (d.status === 'done' && d.result) { renderResult(d.result); show('result-section'); resetDownloadBtn(); return; }
+    if (d.status === 'error') { appendLog(d.error||'Error','error'); resetAnalyzeBtn(); resetDownloadBtn(); return; }
     setTimeout(() => pollStatus(jid), 1500);
-  } catch(e) {
-    setTimeout(() => pollStatus(jid), 3000);
-  }
+  } catch { setTimeout(() => pollStatus(jid), 3000); }
 }
 
-// ── Render Meta ───────────────────────────────────────────────────────────────
-function renderMeta(meta) {
-  show('meta-section');
-  document.getElementById('meta-title').textContent = meta.title || 'Unknown';
-  document.getElementById('meta-uploader').textContent = meta.uploader || '';
-  document.getElementById('meta-duration').textContent = 'Duration: '+fmtTime(meta.duration||0);
-
-  const tw = document.getElementById('thumb-wrap');
-  if (meta.thumbnail) {
-    tw.innerHTML = `<img class="meta-thumb" src="${escHtml(meta.thumbnail)}" alt="" loading="lazy" onerror="this.style.display='none'">`;
-  }
-
-  if (meta.score) {
-    const sc = meta.score;
-    document.getElementById('score-num').textContent = sc.total;
-    document.getElementById('score-num').style.color = sc.color;
-    const lbl = document.getElementById('score-label');
-    lbl.textContent = sc.label;
-    lbl.style.color = sc.color;
-
-    const grid = document.getElementById('breakdown-grid');
-    grid.innerHTML = '';
-    for (const [k, v] of Object.entries(sc.breakdown||{})) {
-      grid.innerHTML += `
-        <div class="breakdown-item">
-          <div class="breakdown-label">${k.replace('_',' ')}</div>
-          <div class="mini-bar-wrap"><div class="mini-bar" style="width:${v}%"></div></div>
-          <div class="breakdown-val">${v}/100</div>
-        </div>`;
-    }
-  }
-}
-
-// ── Render Segments ───────────────────────────────────────────────────────────
-function renderSegments(segs) {
-  const list = document.getElementById('segments-list');
-  list.innerHTML = '';
-  segs.forEach((seg, i) => {
-    const div = document.createElement('div');
-    div.className = 'seg-card';
-    div.dataset.idx = i;
-    div.onclick = () => toggleSeg(i);
-
-    const keywords = (seg.matched||[]).map(w => `<span class="seg-tag">${escHtml(w)}</span>`).join('');
-    const preview  = seg.preview ? `<div class="seg-preview">"${escHtml(seg.preview)}"</div>` : '';
-
-    div.innerHTML = `
-      <div class="seg-check">
-        <svg viewBox="0 0 12 10" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="1,5 4.5,8.5 11,1"></polyline>
-        </svg>
-      </div>
-      <div class="seg-header">
-        <span class="seg-index">#${i+1}</span>
-        <span class="seg-time">${fmtTime(seg.start)} -- ${fmtTime(seg.end)}</span>
-        <span class="seg-score-badge">${seg.final_score}</span>
-      </div>
-      <div class="seg-meta">
-        ${keywords}
-        <span class="seg-method">${escHtml(seg.method||'')}</span>
-      </div>
-      ${preview}
-    `;
-    list.appendChild(div);
-  });
-  updateSelectCount();
-}
-
-function toggleSeg(i) {
-  if (selectedSegments.has(i)) selectedSegments.delete(i);
-  else selectedSegments.add(i);
-  document.querySelector(`.seg-card[data-idx="${i}"]`).classList.toggle('selected', selectedSegments.has(i));
-  updateSelectCount();
-}
-
-function selectAll()  { currentSegments.forEach((_,i) => selectedSegments.add(i)); refreshSelUI(); }
-function selectNone() { selectedSegments.clear(); refreshSelUI(); }
-
-function refreshSelUI() {
-  document.querySelectorAll('.seg-card').forEach(c => {
-    c.classList.toggle('selected', selectedSegments.has(parseInt(c.dataset.idx)));
-  });
-  updateSelectCount();
-}
-
-function updateSelectCount() {
-  const n = selectedSegments.size;
-  document.getElementById('select-count').textContent = `${n} selected`;
-  document.getElementById('download-btn').disabled = n === 0;
-}
-
-// ── Aspect toggle ─────────────────────────────────────────────────────────────
-function setAspect(btn, val) {
-  currentAspect = val;
-  btn.closest('.toggle-group').querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-}
-
-function setBurnSubs(btn, val) {
-  currentBurnSubs = val;
-  btn.closest('.toggle-group').querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-}
-
-// ── Start Download ────────────────────────────────────────────────────────────
+// ── Start Download ─────────────────────────────────────────────────────────────
 async function startDownload() {
-  if (selectedSegments.size === 0) { toast('Select at least one segment'); return; }
-  if (!currentJobId) return;
+  if (selectedSegments.size === 0) { toast('Pilih minimal satu segmen'); return; }
+  if (!currentJobId) { toast('Session tidak valid, analisis ulang video'); return; }
 
-  document.getElementById('download-btn').disabled = true;
+  const dlBtn = document.getElementById('download-btn');
+  dlBtn.disabled = true;
+  dlBtn.innerHTML = '<span class="spinner"></span> Memproses...';
+
   document.getElementById('log-output').innerHTML = '';
   setProgress(0, 'processing');
   setStatusBadge('downloading');
   hide('result-section');
+  isProcessing = true;
+
+  // Tutup SSE analisis jika masih terbuka
+  if (sseSource) { sseSource.close(); sseSource = null; }
 
   const quality = document.getElementById('dl-quality').value;
-  const segs    = Array.from(selectedSegments).sort((a,b)=>a-b);
-
-  appendLog(`Downloading ${segs.length} clip(s)...`, 'info');
+  const segs    = Array.from(selectedSegments).sort((a, b) => a - b);
+  appendLog(`Memulai download ${segs.length} clip (kualitas ${quality}p)...`, 'info');
 
   try {
     const res = await fetch('/api/download_clips', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({job_id: currentJobId, segments: segs, quality, aspect: currentAspect, burn_subs: currentBurnSubs})
+      method:  'POST',
+      headers: {'Content-Type': 'application/json'},
+      body:    JSON.stringify({
+        job_id:   currentJobId,
+        segments: segs,
+        quality,
+        aspect:   currentAspect,
+      }),
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
-    startSSEDownload(currentJobId);
-  } catch(e) {
-    appendLog('Error: '+e.message, 'error');
-    document.getElementById('download-btn').disabled = false;
-    toast('Error: '+e.message);
+
+    // Gunakan SSE untuk monitor download — lebih real-time dari polling
+    _pollLogCount = 0;
+    startDownloadSSE(currentJobId);
+  } catch (e) {
+    appendLog('Error: ' + e.message, 'error');
+    resetDownloadBtn();
+    toast('Gagal memulai download: ' + e.message);
   }
 }
 
-function startSSEDownload(jid) {
-  if (sseSource) { sseSource.close(); }
-  sseSource = new EventSource(`/api/stream/${jid}`);
-  sseSource.onmessage = function(e) {
-    const d = JSON.parse(e.data);
-    setProgress(d.progress||0, d.stage);
-    setStatusBadge(d.status);
-    (d.new_logs||[]).forEach(l => appendLog(l.msg, l.level));
+// ── Download SSE Monitor ───────────────────────────────────────────────────────
+function startDownloadSSE(jid) {
+  // Timeout 15 menit — jika lebih dari itu, anggap gagal
+  const TIMEOUT_MS = 15 * 60 * 1000;
+  const startedAt  = Date.now();
 
-    if (d.status==='done' && d.result) {
+  const src = new EventSource(`/api/stream/${jid}`);
+
+  src.onmessage = function(e) {
+    if (Date.now() - startedAt > TIMEOUT_MS) {
+      src.close();
+      appendLog('Timeout: proses terlalu lama, coba lagi.', 'error');
+      resetDownloadBtn();
+      toast('Timeout download');
+      return;
+    }
+
+    const d = JSON.parse(e.data);
+    setProgress(d.progress || 0, d.stage);
+    setStatusBadge(d.status);
+    (d.new_logs || []).forEach(l => appendLog(l.msg, l.level));
+
+    if (d.status === 'done' && d.result) {
+      src.close();
+      isProcessing = false;
+      document.getElementById('stay-warning').style.display = 'none';
       renderResult(d.result);
       show('result-section');
-      document.getElementById('download-btn').disabled = false;
-      sseSource.close();
-      toast('Clips created successfully!');
+      resetDownloadBtn();
+      toast('Clip berhasil dibuat!');
     }
-    if (d.status==='error') {
-      appendLog(d.error||'Error', 'error');
-      document.getElementById('download-btn').disabled = false;
-      toast('Error: '+(d.error||'Unknown'));
-      sseSource.close();
+    if (d.status === 'error') {
+      src.close();
+      isProcessing = false;
+      document.getElementById('stay-warning').style.display = 'none';
+      appendLog('Error: ' + (d.error || 'Unknown'), 'error');
+      resetDownloadBtn();
+      toast('Gagal: ' + (d.error || 'Unknown error'));
     }
   };
-  sseSource.onerror = () => { sseSource.close(); pollStatusDownload(jid); };
+
+  src.onerror = () => {
+    src.close();
+    // SSE putus — fallback ke poll sekali
+    _pollLogCount = 0;
+    pollDownload(jid, Date.now(), TIMEOUT_MS);
+  };
 }
 
-async function pollStatusDownload(jid) {
+let _pollLogCount = 0;
+async function pollDownload(jid, startedAt = Date.now(), timeoutMs = 15 * 60 * 1000) {
+  if (Date.now() - startedAt > timeoutMs) {
+    appendLog('Timeout: proses terlalu lama.', 'error');
+    resetDownloadBtn();
+    toast('Timeout download');
+    return;
+  }
   try {
     const res = await fetch(`/api/status/${jid}`);
     const d   = await res.json();
-    setProgress(d.progress||0, d.stage);
+
+    setProgress(d.progress || 0, d.stage);
     setStatusBadge(d.status);
-    (d.logs||[]).slice(-5).forEach(l => appendLog(l.msg, l.level));
-    if (d.status==='done' && d.result) {
-      renderResult(d.result); show('result-section');
-      document.getElementById('download-btn').disabled = false;
+
+    if (d.logs && d.logs.length > _pollLogCount) {
+      d.logs.slice(_pollLogCount).forEach(l => appendLog(l.msg, l.level));
+      _pollLogCount = d.logs.length;
+    }
+
+    if (d.status === 'done' && d.result) {
+      renderResult(d.result);
+      show('result-section');
+      resetDownloadBtn();
+      _pollLogCount = 0;
+      toast('Clip berhasil dibuat!');
       return;
     }
-    if (d.status==='error') {
-      appendLog(d.error||'Error','error');
-      document.getElementById('download-btn').disabled = false;
+    if (d.status === 'error') {
+      appendLog('Error: ' + (d.error || 'Unknown'), 'error');
+      resetDownloadBtn();
+      _pollLogCount = 0;
+      toast('Gagal: ' + (d.error || 'Unknown error'));
       return;
     }
-    if (d.status==='downloading') setTimeout(() => pollStatusDownload(jid), 1500);
-  } catch { setTimeout(() => pollStatusDownload(jid), 3000); }
+    // Masih berjalan — poll lagi
+    setTimeout(() => pollDownload(jid, startedAt, timeoutMs), 2000);
+  } catch {
+    appendLog('Koneksi terputus, mencoba ulang...', 'warn');
+    setTimeout(() => pollDownload(jid, startedAt, timeoutMs), 4000);
+  }
 }
 
-// ── Render Result ─────────────────────────────────────────────────────────────
+function resetDownloadBtn() {
+  const btn = document.getElementById('download-btn');
+  btn.disabled = false;
+  btn.innerHTML = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Unduh Clip Terpilih`;
+}
+
+
+// ── Render Result ──────────────────────────────────────────────────────────────
 function renderResult(files) {
-  document.getElementById('result-count').textContent = files.length+' file(s)';
+  document.getElementById('result-count').textContent = files.length + ' file';
   const el = document.getElementById('result-files');
   el.innerHTML = '';
   files.forEach(name => {
     el.innerHTML += `
       <div class="file-item">
         <div class="file-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="23 7 16 12 23 17 23 7"/>
-            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
-          </svg>
+          <svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
         </div>
         <div class="file-info">
           <div class="file-name" title="${escHtml(name)}">${escHtml(name)}</div>
-          <div class="file-size">Ready to download</div>
+          <div class="file-size">Siap diunduh</div>
         </div>
         <div class="file-actions">
-          <a href="/api/download_file/${encodeURIComponent(name)}" class="btn-sm btn-success" download>Download</a>
+          <a href="/api/download_file/${encodeURIComponent(name)}" class="btn-sm btn-success" download>
+            <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Unduh
+          </a>
         </div>
       </div>`;
   });
 }
 
-// ── Reset ─────────────────────────────────────────────────────────────────────
+// ── Reset ──────────────────────────────────────────────────────────────────────
 function resetAll() {
   if (sseSource) { sseSource.close(); sseSource = null; }
+  isProcessing = false;
+  document.getElementById('stay-warning').style.display = 'none';
   currentJobId = null; selectedSegments.clear(); currentSegments = [];
   document.getElementById('url-input').value = '';
-  document.getElementById('analyze-btn').disabled = false;
+  resetAnalyzeBtn();
   document.getElementById('log-output').innerHTML = '';
   ['progress-section','meta-section','segments-section','result-section'].forEach(hide);
 }
 
-// ── Files Tab ─────────────────────────────────────────────────────────────────
+// ── Load Files ─────────────────────────────────────────────────────────────────
 async function loadFiles() {
   const el = document.getElementById('files-list');
-  el.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:24px 0">Loading...</div>';
+  el.innerHTML = '<div style="color:var(--gray-400);font-size:13px;text-align:center;padding:24px 0;font-family:\'JetBrains Mono\',monospace">Memuat...</div>';
   try {
     const res   = await fetch('/api/files');
     const files = await res.json();
     if (!files.length) {
-      el.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:32px 0">No clips yet. Create your first clip!</div>';
+      el.innerHTML = '<div style="color:var(--gray-400);font-size:13px;text-align:center;padding:40px 0;font-family:\'JetBrains Mono\',monospace">Belum ada clip. Buat clip pertama Anda!</div>';
       return;
     }
     el.innerHTML = '';
@@ -1407,35 +1628,38 @@ async function loadFiles() {
       el.innerHTML += `
         <div class="file-item" id="file-${escId(f.name)}">
           <div class="file-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <polygon points="23 7 16 12 23 17 23 7"/>
-              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
-            </svg>
+            <svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
           </div>
           <div class="file-info">
             <div class="file-name" title="${escHtml(f.name)}">${escHtml(f.name)}</div>
-            <div class="file-size">${fmtSize(f.size)} -- ${fmtDate(f.mtime)}</div>
+            <div class="file-size">${fmtSize(f.size)} — ${fmtDate(f.mtime)}</div>
           </div>
           <div class="file-actions">
-            <a href="/api/download_file/${encodeURIComponent(f.name)}" class="btn-sm btn-success" download>Download</a>
-            <button class="btn-sm btn-danger" onclick="deleteFile('${escAttr(f.name)}')">Delete</button>
+            <a href="/api/download_file/${encodeURIComponent(f.name)}" class="btn-sm btn-success" download>
+              <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Unduh
+            </a>
+            <button class="btn-sm btn-danger" onclick="deleteFile('${escAttr(f.name)}')">
+              <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+              Hapus
+            </button>
           </div>
         </div>`;
     });
   } catch(e) {
-    el.innerHTML = '<div style="color:var(--red);font-size:13px;text-align:center;padding:24px 0">Failed to load files</div>';
+    el.innerHTML = '<div style="color:var(--red);font-size:13px;text-align:center;padding:24px 0">Gagal memuat file</div>';
   }
 }
 
 async function deleteFile(name) {
-  if (!confirm('Delete '+name+'?')) return;
+  if (!confirm('Hapus ' + name + '?')) return;
   try {
-    await fetch('/api/delete_file/'+encodeURIComponent(name), {method:'DELETE'});
-    document.getElementById('file-'+escId(name))?.remove();
-    toast('Deleted '+name);
+    await fetch('/api/delete_file/' + encodeURIComponent(name), {method:'DELETE'});
+    document.getElementById('file-' + escId(name))?.remove();
+    toast('File dihapus');
     const fl = document.getElementById('files-list');
     if (!fl.querySelector('.file-item')) loadFiles();
-  } catch { toast('Delete failed'); }
+  } catch { toast('Gagal menghapus'); }
 }
 
 function escId(s)   { return s.replace(/[^a-zA-Z0-9_-]/g,'_'); }
