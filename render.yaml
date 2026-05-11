@@ -2,7 +2,7 @@ services:
   - type: web
     name: cliper-app
     runtime: python
-    buildCommand: "pip install -r requirements.txt"
+    buildCommand: "chmod +x render-build.sh && ./render-build.sh"
     startCommand: "python app.py"
     envVars:
       - key: PORT
